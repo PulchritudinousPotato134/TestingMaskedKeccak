@@ -1,0 +1,3 @@
+../Core/Src/test_masked_keccak.c:10:6:print_hex	4
+../Core/Src/test_masked_keccak.c:20:6:trivial_mask_input	3
+../Core/Src/test_masked_keccak.c:29:6:test_masked_keccak	4
