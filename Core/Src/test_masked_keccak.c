@@ -27,6 +27,8 @@ void trivial_mask_input(uint8_t *masked_input, const uint8_t *input, size_t len)
 }
 
 void test_masked_keccak(void) {
+	printf("KYBER_K = %d\n", KYBER_K);
+
     const size_t inlen = 33;
     const size_t outlen = 64;
 
@@ -68,7 +70,7 @@ void test_masked_keccak(void) {
         first_share[i] = masked_output[i * MASKING_N];
     }
 
-    print_hex("Reference SHAKE256", ref_output, outlen);
+    print_hex("Reference SHA3_512", ref_output, outlen);
     print_hex("Masked Output Share[0]", first_share, outlen);
 
     // 5. Compare only Share[0] to reference

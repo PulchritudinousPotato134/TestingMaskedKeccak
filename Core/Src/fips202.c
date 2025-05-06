@@ -748,6 +748,11 @@ void sha3_256(uint8_t h[32], const uint8_t *in, size_t inlen)
   uint64_t s[25];
 
   keccak_absorb_once(s, SHA3_256_RATE, in, inlen, 0x06);
+  printf("\n=== Unmasked state BEFORE round 0 ===\n");
+  for (int i = 0; i < 25; i++) {
+      printf("  w[%2d] = 0x%016llx\n", i, s[i]);  // ✅ Correct
+  }
+
   KeccakF1600_StatePermute(s);
   for(i=0;i<4;i++)
     store64(h+8*i,s[i]);

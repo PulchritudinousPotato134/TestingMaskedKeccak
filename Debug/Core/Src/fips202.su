@@ -22,4 +22,4 @@
 ../Core/Src/fips202.c:700:6:shake128	240	static
 ../Core/Src/fips202.c:723:6:shake256	240	static
 ../Core/Src/fips202.c:745:6:sha3_256	240	static
-../Core/Src/fips202.c:765:6:sha3_512	240	static
+../Core/Src/fips202.c:770:6:sha3_512	240	static
