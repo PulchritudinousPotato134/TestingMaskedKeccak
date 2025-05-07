@@ -7,6 +7,19 @@
 #include <stdint.h>
 #include "fips202.h"
 #include "structs.h"
+#include <inttypes.h>
+
+void print_keccak_state(uint64_t *state, const char *label, int round) {
+    printf("== %s (Round %d) ==\r\n", label, round);
+    for (int i = 0; i < 25; i++) {
+        uint64_t val = state[i];
+        printf("State[%02d]: %08lx%08lx\r\n", i,
+               (unsigned long)(val >> 32),
+               (unsigned long)(val & 0xFFFFFFFF));
+    }
+}
+
+
 #define NROUNDS 24
 #define ROL(a, offset) ((a << offset) ^ (a >> (64-offset)))
 
@@ -78,7 +91,10 @@ static const uint64_t KeccakF_RoundConstants[NROUNDS] = {
 * Description: The Keccak F1600 Permutation
 *
 * Arguments:   - uint64_t *state: pointer to input/output Keccak state
+*
 **************************************************/
+
+
 static void KeccakF1600_StatePermute(uint64_t state[25])
 {
         int round;
@@ -341,6 +357,8 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
         state[22] = Asi;
         state[23] = Aso;
         state[24] = Asu;
+
+        print_keccak_state(state, "After Round", round + 1);
 }
 
 /*************************************************

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
+/*
 extern RNG_HandleTypeDef hrng;
 
 // === Print utility for UART/semihosting ===
@@ -78,4 +79,4 @@ void test_masked_keccak(void) {
         printf("\n❌ First share does NOT match.\n");
     }
 }
-
+*/

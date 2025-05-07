@@ -23,6 +23,13 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "maskedKeccak.h"
+#include "fips202.h"
+#include "masked_sha3_512.h"
+#include "global_rng.h"
+#include <string.h>
+#include <stdio.h>
+#include "masked_absorb.h"
+#include "masked_gadgets.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,10 +77,48 @@ int _write(int file, char *ptr, int len) {
     HAL_UART_Transmit(&huart2, (uint8_t*) ptr, len, HAL_MAX_DELAY);
     return len;
 }
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void print_hex(const char *label, const uint8_t *data, size_t len) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+void print_masked_hex(const char *label, uint8_t data[64][MASKING_N]) {
+    printf("%s: ", label);
+    for (int i = 0; i < 64; i++) {
+        uint8_t acc = data[i][0];
+        for (int j = 1; j < MASKING_N; j++) {
+            acc ^= data[i][j];
+        }
+        printf("%02X", acc);
+    }
+    printf("\n");
+}
+void print_u64(uint64_t val) {
+    for (int i = 60; i >= 0; i -= 4) {
+        uint8_t nibble = (val >> i) & 0xF;
+        char c = (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+        HAL_UART_Transmit(&huart2, (uint8_t*)&c, 1, HAL_MAX_DELAY);
+    }
+    char newline = '\n';
+    HAL_UART_Transmit(&huart2, (uint8_t*)&newline, 1, HAL_MAX_DELAY);
+}
+
+
+uint64_t recombine(const masked_uint64_t *masked) {
+    uint64_t result = 0;
+    for (size_t i = 0; i < MASKING_N; i++) {
+        result ^= masked->share[i];
+    }
+    return result;
+}
 
 /* USER CODE END 0 */
 
@@ -112,7 +157,12 @@ int main(void)
   MX_USB_HOST_Init();
   MX_RNG_Init();
   MX_USART2_UART_Init();
+
+
   /* USER CODE BEGIN 2 */
+  __HAL_RCC_RNG_CLK_ENABLE();
+  HAL_RNG_Init(&hrng);
+  setvbuf(stdout, NULL, _IONBF, 0); // Disable buffering completely
 
   /* USER CODE END 2 */
 
@@ -120,7 +170,89 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  test_masked_keccak();
+	  masked_uint64_t a, b, out;
+
+	     // Example unmasked values
+	     uint64_t a_val = 0xAAAAAAAAAAAAAAAA;
+	     uint64_t b_val = 0xCCCCCCCCCCCCCCCC;
+	     uint64_t expected = a_val & b_val;  // Should be 0x8888888888888888
+
+	     // Initialize all shares to 0
+	     for (int i = 0; i < MASKING_N; i++) {
+	         a.share[i] = 0;
+	         b.share[i] = 0;
+	         out.share[i] = 0;
+	     }
+
+	     // Mask input a: First share gets the value XORed with all masks,
+	     // other shares get the masks
+	     a.share[0] = a_val;
+	     for (int i = 1; i < MASKING_N; i++) {
+	         // Generate a random mask for each share
+	         uint64_t mask = 0x0101010101010101 * i;  // For testing; use TRNG in real impl
+	         a.share[i] = mask;
+	         a.share[0] ^= mask;  // XOR the mask into share 0
+	     }
+
+	     // Mask input b: Same approach
+	     b.share[0] = b_val;
+	     for (int i = 1; i < MASKING_N; i++) {
+	         // Generate a random mask for each share
+	         uint64_t mask = 0x0303030303030303 * i;  // For testing; use TRNG in real impl
+	         b.share[i] = mask;
+	         b.share[0] ^= mask;  // XOR the mask into share 0
+	     }
+
+	     // Generate random values for AND masking
+	     uint64_t r[MASKING_N][MASKING_N] = {0};
+	     for (int i = 0; i < MASKING_N; i++) {
+	         for (int j = i + 1; j < MASKING_N; j++) {
+	             // In a real implementation, these should come from a TRNG
+	             r[i][j] = 0xDEADBEEF00000000 | ((i+1) * 0x100 + j);
+	         }
+	     }
+
+	     // Perform masked AND
+	     masked_and(&out, &a, &b, r);
+
+	     // Recombine and check
+	     uint64_t result = 0;
+	     for (int i = 0; i < MASKING_N; i++) {
+	         result ^= out.share[i];
+	     }
+
+	     // For STM32 printf formatting issues
+	     printf("Expected : %08lX%08lX\n", (uint32_t)(expected >> 32), (uint32_t)expected);
+	     printf("Recovered: %08lX%08lX\n", (uint32_t)(result >> 32), (uint32_t)result);
+
+	     if (result == expected) {
+	         printf("masked_and: PASS\n");
+	     } else {
+	         printf("masked_and: FAIL\n");
+
+	         // For debugging, print individual shares
+	         for (int i = 0; i < MASKING_N; i++) {
+	             printf("Share %d: %08lX%08lX\n", i,
+	                    (uint32_t)(out.share[i] >> 32),
+	                    (uint32_t)out.share[i]);
+	         }
+	     }
+
+	  /*}
+	  const uint8_t input[] = "MaskedKeccakTest";
+	     uint8_t unmasked_output[64];
+	     uint8_t masked_output[64][MASKING_N];
+
+	     // Call reference unmasked SHA3-512
+	     sha3_512(unmasked_output, input, strlen((const char *)input));
+
+	     // Call masked SHA3-512
+	     masked_sha3_512(masked_output, input, strlen((const char *)input));
+
+	     // Print results
+	     print_hex("SHA3-512 (Unmasked)", unmasked_output, 64);
+	     print_masked_hex("SHA3-512 (Masked)", masked_output);
+	     */
     /* USER CODE END WHILE */
     MX_USB_HOST_Process();
 
@@ -128,6 +260,7 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+
 
 /**
   * @brief System Clock Configuration
