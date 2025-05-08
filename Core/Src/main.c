@@ -119,6 +119,23 @@ uint64_t recombine(const masked_uint64_t *masked) {
     }
     return result;
 }
+void run_masked_keccak_round_test(void) {
+    masked_uint64_t state[5][5];
+
+    // === Set each lane to a known value ===
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            uint64_t val = 0xAAAAAAAAAAAAAAAAULL * (5 * x + y + 1);
+            masked_value_set(&state[x][y], val);
+        }
+    }
+
+    // === Select a fixed Keccak round constant (example: RC for round 0) ===
+    uint64_t rc = 0x0000000000000001ULL;
+
+    // === Run the full round ===
+    masked_keccak_round(state, rc);
+}
 
 /* USER CODE END 0 */
 
@@ -170,73 +187,44 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  masked_uint64_t a, b, out;
 
-	     // Example unmasked values
-	     uint64_t a_val = 0xAAAAAAAAAAAAAAAA;
-	     uint64_t b_val = 0xCCCCCCCCCCCCCCCC;
-	     uint64_t expected = a_val & b_val;  // Should be 0x8888888888888888
+	  const uint8_t input[] = {
+	         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+	         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+	         0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
+	     };
+	     size_t input_len = sizeof(input);
 
-	     // Initialize all shares to 0
-	     for (int i = 0; i < MASKING_N; i++) {
-	         a.share[i] = 0;
-	         b.share[i] = 0;
-	         out.share[i] = 0;
+	     uint8_t ref_output[64];
+	     uint8_t masked_output[64];
+
+	     // Run reference SHA3-512
+	     sha3_512(ref_output, input, input_len);
+
+	     // Run masked SHA3-512
+	     masked_sha3_512(masked_output, input, input_len);
+
+	     // Print both
+	     printf("== Reference SHA3-512 ==\n");
+	     for (int i = 0; i < 64; i++) {
+	         printf("%02X", ref_output[i]);
+	         if ((i + 1) % 16 == 0) printf("\n");
 	     }
 
-	     // Mask input a: First share gets the value XORed with all masks,
-	     // other shares get the masks
-	     a.share[0] = a_val;
-	     for (int i = 1; i < MASKING_N; i++) {
-	         // Generate a random mask for each share
-	         uint64_t mask = 0x0101010101010101 * i;  // For testing; use TRNG in real impl
-	         a.share[i] = mask;
-	         a.share[0] ^= mask;  // XOR the mask into share 0
+	     printf("== Masked SHA3-512 ==\n");
+	     for (int i = 0; i < 64; i++) {
+	         printf("%02X", masked_output[i]);
+	         if ((i + 1) % 16 == 0) printf("\n");
 	     }
 
-	     // Mask input b: Same approach
-	     b.share[0] = b_val;
-	     for (int i = 1; i < MASKING_N; i++) {
-	         // Generate a random mask for each share
-	         uint64_t mask = 0x0303030303030303 * i;  // For testing; use TRNG in real impl
-	         b.share[i] = mask;
-	         b.share[0] ^= mask;  // XOR the mask into share 0
-	     }
-
-	     // Generate random values for AND masking
-	     uint64_t r[MASKING_N][MASKING_N] = {0};
-	     for (int i = 0; i < MASKING_N; i++) {
-	         for (int j = i + 1; j < MASKING_N; j++) {
-	             // In a real implementation, these should come from a TRNG
-	             r[i][j] = 0xDEADBEEF00000000 | ((i+1) * 0x100 + j);
-	         }
-	     }
-
-	     // Perform masked AND
-	     masked_and(&out, &a, &b, r);
-
-	     // Recombine and check
-	     uint64_t result = 0;
-	     for (int i = 0; i < MASKING_N; i++) {
-	         result ^= out.share[i];
-	     }
-
-	     // For STM32 printf formatting issues
-	     printf("Expected : %08lX%08lX\n", (uint32_t)(expected >> 32), (uint32_t)expected);
-	     printf("Recovered: %08lX%08lX\n", (uint32_t)(result >> 32), (uint32_t)result);
-
-	     if (result == expected) {
-	         printf("masked_and: PASS\n");
+	     // Compare
+	     if (memcmp(ref_output, masked_output, 64) == 0) {
+	         printf("✅ masked_sha3_512: PASS\n");
 	     } else {
-	         printf("masked_and: FAIL\n");
-
-	         // For debugging, print individual shares
-	         for (int i = 0; i < MASKING_N; i++) {
-	             printf("Share %d: %08lX%08lX\n", i,
-	                    (uint32_t)(out.share[i] >> 32),
-	                    (uint32_t)out.share[i]);
-	         }
+	         printf("❌ masked_sha3_512: FAIL\n");
 	     }
+
 
 	  /*}
 	  const uint8_t input[] = "MaskedKeccakTest";

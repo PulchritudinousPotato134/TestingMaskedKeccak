@@ -140,6 +140,15 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
         Asu = state[24];
 
         for(round = 0; round < NROUNDS; round += 2) {
+
+        	// Debug: Start of round
+        	            state[ 0] = Aba; state[ 1] = Abe; state[ 2] = Abi; state[ 3] = Abo; state[ 4] = Abu;
+        	            state[ 5] = Aga; state[ 6] = Age; state[ 7] = Agi; state[ 8] = Ago; state[ 9] = Agu;
+        	            state[10] = Aka; state[11] = Ake; state[12] = Aki; state[13] = Ako; state[14] = Aku;
+        	            state[15] = Ama; state[16] = Ame; state[17] = Ami; state[18] = Amo; state[19] = Amu;
+        	            state[20] = Asa; state[21] = Ase; state[22] = Asi; state[23] = Aso; state[24] = Asu;
+        	            print_keccak_state(state, "Start of Round", round);
+
             //    prepareTheta
             BCa = Aba^Aga^Aka^Ama^Asa;
             BCe = Abe^Age^Ake^Ame^Ase;
@@ -171,6 +180,8 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
             Ebo =   BCo ^((~BCu)&  BCa );
             Ebu =   BCu ^((~BCa)&  BCe );
 
+            print_keccak_state((uint64_t[]){Eba,Ebe,Ebi,Ebo,Ebu}, "After Theta", round);
+
             Abo ^= Do;
             BCa = ROL(Abo, 28);
             Agu ^= Du;
@@ -186,6 +197,8 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
             Egi =   BCi ^((~BCo)&  BCu );
             Ego =   BCo ^((~BCu)&  BCa );
             Egu =   BCu ^((~BCa)&  BCe );
+
+            print_keccak_state((uint64_t[]){Ega,Ege,Egi,Ego,Egu}, "After Rho", round);
 
             Abe ^= De;
             BCa = ROL(Abe,  1);
@@ -203,6 +216,8 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
             Eko =   BCo ^((~BCu)&  BCa );
             Eku =   BCu ^((~BCa)&  BCe );
 
+            print_keccak_state((uint64_t[]){Eka,Eke,Eki,Eko,Eku}, "After Pi", round);
+
             Abu ^= Du;
             BCa = ROL(Abu, 27);
             Aga ^= Da;
@@ -219,6 +234,8 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
             Emo =   BCo ^((~BCu)&  BCa );
             Emu =   BCu ^((~BCa)&  BCe );
 
+            print_keccak_state((uint64_t[]){Ema,Eme,Emi,Emo,Emu}, "After Chi", round);
+
             Abi ^= Di;
             BCa = ROL(Abi, 62);
             Ago ^= Do;
@@ -234,7 +251,7 @@ static void KeccakF1600_StatePermute(uint64_t state[25])
             Esi =   BCi ^((~BCo)&  BCu );
             Eso =   BCo ^((~BCu)&  BCa );
             Esu =   BCu ^((~BCa)&  BCe );
-
+            print_keccak_state((uint64_t[]){Esa,Ese,Esi,Eso,Esu}, "After Iota", round);
             //    prepareTheta
             BCa = Eba^Ega^Eka^Ema^Esa;
             BCe = Ebe^Ege^Eke^Eme^Ese;

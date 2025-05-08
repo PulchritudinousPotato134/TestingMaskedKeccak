@@ -37,20 +37,29 @@ void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t inp
     }
 
     size_t offset = 0;
+    // Process complete blocks
     while (input_len >= KECCAK_RATE) {
         for (int i = 0; i < KECCAK_RATE; i += 8) {
             uint64_t lane = 0;
-            memcpy(&lane, input + offset + i, 8);
+            // Correctly load 8 bytes as a 64-bit value (little-endian)
+            for (int j = 0; j < 8; j++) {
+                lane |= ((uint64_t)input[offset + i + j]) << (8 * j);
+            }
 
             size_t x = (i / 8) % 5;
             size_t y = (i / 8) / 5;
 
+            // Securely mask the input value
             masked_uint64_t masked_lane;
             masked_value_set(&masked_lane, lane);
+
+            // XOR into the state
             masked_xor(&state[x][y], &state[x][y], &masked_lane);
         }
 
+        // Apply the permutation
         masked_keccak_f1600(state);
+
         offset += KECCAK_RATE;
         input_len -= KECCAK_RATE;
     }
@@ -58,17 +67,15 @@ void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t inp
     // Final block with padding
     uint8_t block[KECCAK_RATE] = {0};
     memcpy(block, input + offset, input_len);
-    block[input_len] ^= 0x1;
+    block[input_len] ^= 0x06;  // Apply domain separation
+    block[KECCAK_RATE - 1] ^= 0x80;  // Apply padding
 
-    block[KECCAK_RATE - 1] ^= 0x80;
-
+    // Process the final block
     for (int i = 0; i < KECCAK_RATE; i += 8) {
         uint64_t lane = 0;
-        lane = 0;
-        for (int j = 0; j < 8; j++) {
+        for (int j = 0; j < 8 && (i + j) < KECCAK_RATE; j++) {  // Added bounds check
             lane |= ((uint64_t)block[i + j]) << (8 * j);
         }
-
 
         size_t x = (i / 8) % 5;
         size_t y = (i / 8) / 5;
@@ -78,6 +85,7 @@ void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t inp
         masked_xor(&state[x][y], &state[x][y], &masked_lane);
     }
 
+    // Final permutation
     masked_keccak_f1600(state);
 }
 
