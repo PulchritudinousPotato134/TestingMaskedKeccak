@@ -1,0 +1,15 @@
+../Core/Src/keccak.c:41:6:compute_rho	136	static
+../Core/Src/keccak.c:64:6:theta	160	static
+../Core/Src/keccak.c:87:6:rho	56	static
+../Core/Src/keccak.c:98:6:pi	232	static
+../Core/Src/keccak.c:120:6:chi	88	static
+../Core/Src/keccak.c:137:6:iota	24	static
+../Core/Src/keccak.c:145:5:keccakf	24	static
+../Core/Src/keccak.c:159:6:sponge_absorb	56	static
+../Core/Src/keccak.c:179:6:sponge_squeeze	32	static
+../Core/Src/keccak.c:205:5:pad101	40	static
+../Core/Src/keccak.c:235:5:keccak	296	dynamic
+../Core/Src/keccak.c:289:5:FIVEONETWO	32	static
+../Core/Src/keccak.c:294:5:sha3_384	32	static
+../Core/Src/keccak.c:299:5:TWOFIVESIX	32	static
+../Core/Src/keccak.c:304:5:sha3_224	32	static

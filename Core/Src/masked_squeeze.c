@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #define KECCAK_RATE 168  // SHAKE128 rate in bytes
+
 void masked_squeeze(uint8_t *output, size_t output_len, masked_uint64_t state[5][5]) {
     size_t offset = 0;
 

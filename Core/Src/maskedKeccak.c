@@ -17,6 +17,7 @@ uint64_t get_random64(void) {
 void masked_theta(masked_uint64_t state[5][5]) {
     masked_uint64_t C[5], D[5];
 
+    // Compute C[x] = A[x,0] ^ A[x,1] ^ ... ^ A[x,4]
     for (int x = 0; x < 5; x++) {
         C[x] = state[x][0];
         for (int y = 1; y < 5; y++) {
@@ -24,15 +25,21 @@ void masked_theta(masked_uint64_t state[5][5]) {
         }
     }
 
+    // Compute D[x] = C[x-1] XOR ROT(C[x+1], 1)
     for (int x = 0; x < 5; x++) {
-        masked_uint64_t rot;
+        masked_uint64_t rot = {0};
+        masked_uint64_t rotated = {0};
+
         for (int i = 0; i < MASKING_N; i++) {
             rot.share[i] = (C[(x + 1) % 5].share[i] << 1) |
                            (C[(x + 1) % 5].share[i] >> (64 - 1));
         }
+
         masked_xor(&D[x], &C[(x + 4) % 5], &rot);
     }
 
+
+    // Apply D[x] to each state[x][y]
     for (int x = 0; x < 5; x++) {
         for (int y = 0; y < 5; y++) {
             masked_xor(&state[x][y], &state[x][y], &D[x]);

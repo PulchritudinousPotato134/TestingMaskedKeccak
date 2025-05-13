@@ -1,0 +1,15 @@
+../Core/Src/keccak.c:41:6:compute_rho	2
+../Core/Src/keccak.c:64:6:theta	4
+../Core/Src/keccak.c:87:6:rho	3
+../Core/Src/keccak.c:98:6:pi	5
+../Core/Src/keccak.c:120:6:chi	4
+../Core/Src/keccak.c:137:6:iota	1
+../Core/Src/keccak.c:145:5:keccakf	2
+../Core/Src/keccak.c:159:6:sponge_absorb	4
+../Core/Src/keccak.c:179:6:sponge_squeeze	4
+../Core/Src/keccak.c:205:5:pad101	3
+../Core/Src/keccak.c:235:5:keccak	8
+../Core/Src/keccak.c:289:5:FIVEONETWO	1
+../Core/Src/keccak.c:294:5:sha3_384	1
+../Core/Src/keccak.c:299:5:TWOFIVESIX	1
+../Core/Src/keccak.c:304:5:sha3_224	1

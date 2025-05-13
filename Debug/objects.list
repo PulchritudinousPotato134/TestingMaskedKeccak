@@ -1,5 +1,6 @@
 "./Core/Src/debug_log.o"
 "./Core/Src/fips202.o"
+"./Core/Src/keccak.o"
 "./Core/Src/main.o"
 "./Core/Src/maskedKeccak.o"
 "./Core/Src/masked_absorb.o"

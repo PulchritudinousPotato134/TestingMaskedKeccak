@@ -58,7 +58,10 @@ void masked_keccak_f1600(masked_uint64_t state[5][5]) {
 	for (int x = 0; x < 5; x++) {
 	    for (int y = 0; y < 5; y++) {
 	        uint64_t recombined = masked_recombine(&state[x][y]);
-	        printf("State[%d][%d]: %016llX\n", x, y, recombined);
+	        uint32_t hi = (uint32_t)(recombined >> 32);
+	        uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
+	        printf("State[%d][%d]: %08X%08X\n", x, y, hi, lo);
+
 	    }
 	}
 

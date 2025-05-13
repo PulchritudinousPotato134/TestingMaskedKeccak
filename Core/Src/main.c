@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include "masked_absorb.h"
 #include "masked_gadgets.h"
+#include "keccak.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -188,21 +189,67 @@ int main(void)
   while (1)
   {
 
-	  const uint8_t input[] = {
-	         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-	         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-	         0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
-	     };
-	     size_t input_len = sizeof(input);
+	      const uint8_t input[] = {
+	          0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	          0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+	          0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+	          0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
+	      };
+	      size_t input_len = sizeof(input);
+
+	      // SHA3-512 has: r = 576, c = 1024
+	      int r = 576;
+	      int c = 1024;
+	      int b = r + c;
+	      int block_size = r / 8;
+
+	      // padded input buffer
+	      int blocks = input_len / block_size;
+	      uint8_t padded[block_size * (blocks + 1)];
+	      int padded_len = pad101(r, blocks, input_len, (uint8_t *)input, padded);
+
+	      // 25-lane state
+	      uint64_t state[25] = {0};
+
+	      // absorb one block manually
+	      for (int i = 0; i < r / 64; i++) {
+	          uint32_t lo = 0, hi = 0;
+	          for (int j = 0; j < 4; j++) {
+	              lo |= ((uint32_t)padded[i * 8 + j]) << (8 * j);
+	              hi |= ((uint32_t)padded[i * 8 + 4 + j]) << (8 * j);
+	          }
+	          state[i] ^= ((uint64_t)hi << 32) | lo;
+	      }
+
+	      // Print state before theta
+	      printf("== Before Theta ==\n");
+	      for (int i = 0; i < 25; i++) {
+	          uint32_t lo = (uint32_t)(state[i] & 0xFFFFFFFF);
+	          uint32_t hi = (uint32_t)(state[i] >> 32);
+	          printf("State[%02d]: %08lX%08lX\n", i, hi, lo);
+	      }
+
+	      // Run just theta
+	      theta(state);
+
+	      // Print state after theta
+	      printf("== After Theta ==\n");
+	      for (int i = 0; i < 25; i++) {
+	          uint32_t lo = (uint32_t)(state[i] & 0xFFFFFFFF);
+	          uint32_t hi = (uint32_t)(state[i] >> 32);
+	          printf("State[%02d]: %08lX%08lX\n", i, hi, lo);
+	      }
+
+
 
 	     uint8_t ref_output[64];
 	     uint8_t masked_output[64];
 
 	     // Run reference SHA3-512
-	     sha3_512(ref_output, input, input_len);
+	     //sha3_512(ref_output, input, input_len);
 
-	     // Run masked SHA3-512
+	     // Run masked SHA3-512;
+	     printf("BEFORE MASKED INPUT");
 	     masked_sha3_512(masked_output, input, input_len);
 
 	     // Print both
@@ -224,7 +271,6 @@ int main(void)
 	     } else {
 	         printf("❌ masked_sha3_512: FAIL\n");
 	     }
-
 
 	  /*}
 	  const uint8_t input[] = "MaskedKeccakTest";
