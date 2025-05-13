@@ -15,37 +15,63 @@ uint64_t get_random64(void) {
 
 // === THETA ===
 void masked_theta(masked_uint64_t state[5][5]) {
-    masked_uint64_t C[5], D[5];
+    masked_uint64_t C[5] = {0};
+    masked_uint64_t D[5] = {0};
+    masked_uint64_t debug_state[5][5] = {0};
 
     // Compute C[x] = A[x,0] ^ A[x,1] ^ ... ^ A[x,4]
+    printf("== C[x] ==\n");
     for (int x = 0; x < 5; x++) {
         C[x] = state[x][0];
         for (int y = 1; y < 5; y++) {
             masked_xor(&C[x], &C[x], &state[x][y]);
         }
+
+        uint64_t recombined = 0;
+        for (int i = 0; i < MASKING_N; i++) recombined ^= C[x].share[i];
+        uint32_t hi = (uint32_t)(recombined >> 32);
+        uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
+        printf("C[%d] = %08lX%08lX\n", x, hi, lo);
+
     }
 
-    // Compute D[x] = C[x-1] XOR ROT(C[x+1], 1)
+    // Compute D[x] = C[x-1] ^ ROTL(C[x+1], 1)
+    printf("\n== D[x] ==\n");
     for (int x = 0; x < 5; x++) {
-        masked_uint64_t rot = {0};
-        masked_uint64_t rotated = {0};
-
+        masked_uint64_t rotated;
         for (int i = 0; i < MASKING_N; i++) {
-            rot.share[i] = (C[(x + 1) % 5].share[i] << 1) |
-                           (C[(x + 1) % 5].share[i] >> (64 - 1));
+            rotated.share[i] = (C[(x + 1) % 5].share[i] << 1) |
+                               (C[(x + 1) % 5].share[i] >> (64 - 1));
         }
 
-        masked_xor(&D[x], &C[(x + 4) % 5], &rot);
+        masked_xor(&D[x], &C[(x + 4) % 5], &rotated);
+
+        uint64_t recombined = 0;
+        for (int i = 0; i < MASKING_N; i++) recombined ^= D[x].share[i];
+        uint32_t hi = (uint32_t)(recombined >> 32);
+        uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
+        printf("D[%d] = %08lX%08lX\n", x, hi, lo);
+
     }
 
-
-    // Apply D[x] to each state[x][y]
+    // Apply D[x] to state[x][y]
+    printf("\n== Updated state[x][y] ==\n");
     for (int x = 0; x < 5; x++) {
         for (int y = 0; y < 5; y++) {
             masked_xor(&state[x][y], &state[x][y], &D[x]);
+
+            // Debug print after D[x] applied
+            uint64_t recombined = 0;
+            for (int i = 0; i < MASKING_N; i++) recombined ^= state[x][y].share[i];
+            uint32_t hi = (uint32_t)(recombined >> 32);
+            uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
+            printf("state[%d][%d] = %08lX%08lX\n", x, y, hi, lo);
         }
     }
+
 }
+
+
 
 // === RHO ===
 static const uint8_t keccak_rho_offsets[5][5] = {

@@ -1,8 +1,8 @@
 ../Core/Src/maskedKeccak.c:9:10:get_random64	1
-../Core/Src/maskedKeccak.c:17:6:masked_theta	7
-../Core/Src/maskedKeccak.c:59:6:masked_rho	4
-../Core/Src/maskedKeccak.c:72:6:masked_pi	5
-../Core/Src/maskedKeccak.c:89:6:masked_chi	5
-../Core/Src/maskedKeccak.c:115:6:masked_iota	3
-../Core/Src/maskedKeccak.c:129:6:print_recombined_state	4
-../Core/Src/maskedKeccak.c:145:6:masked_keccak_round	3
+../Core/Src/maskedKeccak.c:17:6:masked_theta	10
+../Core/Src/maskedKeccak.c:85:6:masked_rho	4
+../Core/Src/maskedKeccak.c:98:6:masked_pi	5
+../Core/Src/maskedKeccak.c:115:6:masked_chi	5
+../Core/Src/maskedKeccak.c:141:6:masked_iota	3
+../Core/Src/maskedKeccak.c:155:6:print_recombined_state	4
+../Core/Src/maskedKeccak.c:171:6:masked_keccak_round	3
