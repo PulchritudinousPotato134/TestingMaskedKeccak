@@ -1,0 +1,3 @@
+../Core/Src/testchi.c:8:5:test_masked_chi_against_reference_keccak	12
+../Core/Src/testchi.c:76:6:masked_chi_outofplace	3
+../Core/Src/testchi.c:93:5:test_masked_chi_outofplace_single_lanes	13

@@ -3,7 +3,8 @@
 ../Core/Src/maskedKeccak.c:59:24:rol64	48	static
 ../Core/Src/maskedKeccak.c:65:6:masked_rho	48	static
 ../Core/Src/maskedKeccak.c:78:6:masked_pi	904	static
-../Core/Src/maskedKeccak.c:113:6:masked_chi	272	static
-../Core/Src/maskedKeccak.c:138:6:masked_iota	32	static
-../Core/Src/maskedKeccak.c:143:6:print_recombined_state	64	static
-../Core/Src/maskedKeccak.c:159:6:masked_keccak_round	3232	static
+../Core/Src/maskedKeccak.c:116:6:masked_not	104	static
+../Core/Src/maskedKeccak.c:137:6:masked_chi	264	static
+../Core/Src/maskedKeccak.c:165:6:masked_iota	32	static
+../Core/Src/maskedKeccak.c:170:6:print_recombined_state	64	static
+../Core/Src/maskedKeccak.c:186:6:masked_keccak_round	3232	static

@@ -110,6 +110,30 @@ void masked_pi(masked_uint64_t state[5][5])
 
 
 // === CHI ===
+/* ─── tiny helper: masked bitwise NOT (Boolean shares) ───────────────── */
+/* ─── Boolean-masked bitwise NOT ───────────────────────────────────────
+   dst ← ¬src   (while preserving the XOR-mask invariant)              */
+void masked_not(masked_uint64_t *dst,
+                              const masked_uint64_t *src)
+{
+    /* 1.  Invert every share ------------------------------------------ */
+    for (size_t i = 0; i < MASKING_N; ++i)
+        dst->share[i] = ~src->share[i];
+
+    /* 2.  Re-align the mask so that XOR(shares) == ¬XOR(original) ----- */
+    uint64_t orig_parity = 0, inv_parity = 0;
+    for (size_t i = 0; i < MASKING_N; ++i) {
+        orig_parity ^= src->share[i];
+        inv_parity  ^= dst->share[i];
+    }
+    /* delta is the amount by which the parity is off */
+    uint64_t delta = inv_parity ^ ~orig_parity;
+
+    /* flip ‘delta’ in ONE share (here: share 0) */
+    dst->share[0] ^= delta;
+}
+
+/* ─── χ step with correct NOT ───────────────────────────────────────── */
 void masked_chi(masked_uint64_t state[5][5],
                 uint64_t r[5][5][MASKING_N][MASKING_N]) {
     masked_uint64_t temp[5];
@@ -121,9 +145,9 @@ void masked_chi(masked_uint64_t state[5][5],
 
         for (int x = 0; x < 5; x++) {
             masked_uint64_t notA1;
-            for (int i = 0; i < MASKING_N; i++) {
-                notA1.share[i] = ~temp[(x + 1) % 5].share[i];
-            }
+            masked_not(&notA1, &temp[(x + 1) % 5]);  // ✅ deterministic, NO randomness
+
+            fill_random_matrix(r[x][y]);             // ✅ fresh randomness FOR THIS AND
 
             masked_uint64_t and_result;
             masked_and(&and_result,
@@ -135,6 +159,9 @@ void masked_chi(masked_uint64_t state[5][5],
         }
     }
 }
+
+
+
 void masked_iota(masked_uint64_t state[5][5], uint64_t rc) {
     state[0][0].share[0] ^= rc;
 }

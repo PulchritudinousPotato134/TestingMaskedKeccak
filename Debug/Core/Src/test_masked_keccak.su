@@ -1,0 +1,4 @@
+../Core/Src/test_masked_keccak.c:16:20:masked_not_share0	16	static
+../Core/Src/test_masked_keccak.c:24:20:masked_and_ISW_1	136	static
+../Core/Src/test_masked_keccak.c:52:6:chi_masked_build_new	176	static
+../Core/Src/test_masked_keccak.c:94:17:RNG64	48	static

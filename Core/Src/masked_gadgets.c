@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "masked_gadgets.h"  // Make sure this includes definitions for masked_xor, masked_and, fill_random_matrix
-
+#include <inttypes.h>
 
 // Utility function to recombine shares
 uint64_t recombineForTest(const masked_uint64_t* m) {
@@ -13,6 +13,129 @@ uint64_t recombineForTest(const masked_uint64_t* m) {
     for (int i = 0; i < MASKING_N; i++) r ^= m->share[i];
     return r;
 }
+
+int test_masked_and_exhaustive_safe(void) {
+    int fail_count = 0;
+    const uint64_t test_vals[][2] = {
+        {0x0000000000000000ULL, 0x0000000000000000ULL},
+        {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL},
+        {0xFFFFFFFFFFFFFFFFULL, 0x0000000000000000ULL},
+        {0xAAAAAAAAAAAAAAAAULL, 0x5555555555555555ULL},
+        {0x123456789ABCDEF0ULL, 0x0F0F0F0F0F0F0F0FULL},
+        {0xFFFF0000FFFF0000ULL, 0x00FF00FF00FF00FFULL}, // your original
+    };
+
+    for (int t = 0; t < sizeof(test_vals) / sizeof(test_vals[0]); t++) {
+        masked_uint64_t a = {0}, b = {0}, result = {0};
+        uint64_t r[MASKING_N][MASKING_N];
+        uint64_t a_val = test_vals[t][0];
+        uint64_t b_val = test_vals[t][1];
+
+        // Generate masked shares
+        uint64_t a_combined = a_val;
+        uint64_t b_combined = b_val;
+        for (int i = 1; i < MASKING_N; i++) {
+            a.share[i] = get_random64();
+            b.share[i] = get_random64();
+            a_combined ^= a.share[i];
+            b_combined ^= b.share[i];
+        }
+        a.share[0] = a_combined;
+        b.share[0] = b_combined;
+
+        // Fill randomness and compute
+        fill_random_matrix(r);
+        masked_and(&result, &a, &b, r);
+
+        // Recombine
+        uint64_t recombined = 0;
+        for (int i = 0; i < MASKING_N; i++) {
+            recombined ^= result.share[i];
+        }
+
+        uint64_t expected = a_val & b_val;
+        if (recombined != expected) {
+            printf("FAIL [and_exh %d]: a=0x%016" PRIx64 " & b=0x%016" PRIx64
+                   " → got 0x%016" PRIx64 ", expected 0x%016" PRIx64 "\n",
+                   t, a_val, b_val, recombined, expected);
+            fail_count++;
+        }
+    }
+
+    if (fail_count == 0) {
+        printf("PASS: test_masked_and_exhaustive_safe all tests passed.\n");
+    }
+
+    return fail_count;
+}
+
+int test_masked_and_identity_safe(void) {
+    int fails = 0;
+    uint64_t identity_cases[] = {
+        0x0000000000000000ULL,
+        0xFFFFFFFFFFFFFFFFULL,
+        0xAAAAAAAAAAAAAAAAULL,
+        0x123456789ABCDEF0ULL,
+    };
+
+    for (int i = 0; i < sizeof(identity_cases)/sizeof(identity_cases[0]); i++) {
+        uint64_t x_val = identity_cases[i];
+
+        // x & 0 == 0
+        masked_uint64_t a = {0}, b = {0}, result = {0};
+        uint64_t r[MASKING_N][MASKING_N];
+        uint64_t a_combined = x_val;
+
+        for (int s = 1; s < MASKING_N; s++) {
+            a.share[s] = get_random64();
+            a_combined ^= a.share[s];
+        }
+        a.share[0] = a_combined;
+
+        for (int s = 0; s < MASKING_N; s++) {
+            b.share[s] = 0;
+        }
+
+        fill_random_matrix(r);
+        masked_and(&result, &a, &b, r);
+
+        uint64_t recombined = 0;
+        for (int s = 0; s < MASKING_N; s++) {
+            recombined ^= result.share[s];
+        }
+
+        if (recombined != 0) {
+            printf("FAIL: x=0x%016" PRIx64 " & 0 → got 0x%016" PRIx64 "\n", x_val, recombined);
+            fails++;
+        }
+
+        // x & ~0 == x
+        for (int s = 0; s < MASKING_N; s++) {
+            b.share[s] = (s == 0) ? 0xFFFFFFFFFFFFFFFFULL : 0;
+        }
+
+        fill_random_matrix(r);
+        masked_and(&result, &a, &b, r);
+
+        recombined = 0;
+        for (int s = 0; s < MASKING_N; s++) {
+            recombined ^= result.share[s];
+        }
+
+        if (recombined != x_val) {
+            printf("FAIL: x=0x%016" PRIx64 " & ~0 → got 0x%016" PRIx64 "\n", x_val, recombined);
+            fails++;
+        }
+    }
+
+    if (fails == 0) {
+        printf("PASS: test_masked_and_identity_safe passed.\n");
+    }
+
+    return fails;
+}
+
+
 
 // Test masked_xor and masked_and; return 0 if all pass, >0 if failures
 int test_masked_and_xor(void) {
@@ -132,23 +255,24 @@ void masked_xor(masked_uint64_t *out,
 void masked_and(masked_uint64_t *out,
                 const masked_uint64_t *a,
                 const masked_uint64_t *b,
-                const uint64_t r[MASKING_N][MASKING_N]) {
-    // Step 1: Initialize with diagonal terms
-    for (size_t i = 0; i < MASKING_N; i++) {
+                const uint64_t r[MASKING_N][MASKING_N])
+{
+    /* diagonal terms --------------------------------------------------- */
+    for (size_t i = 0; i < MASKING_N; ++i)
         out->share[i] = a->share[i] & b->share[i];
-    }
 
-    // Step 2: Add cross terms with proper masking
-    for (size_t i = 0; i < MASKING_N; i++) {
-        for (size_t j = i + 1; j < MASKING_N; j++) {
-            uint64_t cross_term = (a->share[i] & b->share[j]) ^
-                                 (a->share[j] & b->share[i]);
+    /* cross terms ------------------------------------------------------ */
+    for (size_t i = 0; i < MASKING_N; ++i)
+        for (size_t j = i + 1; j < MASKING_N; ++j) {
 
-            // Distribute the random mask correctly
-            out->share[i] ^= r[i][j];
-            out->share[j] ^= cross_term ^ r[i][j];
+            uint64_t rij   = r[i][j];
+
+            uint64_t t_ij  = (a->share[i] & b->share[j]) ^ rij;
+            uint64_t t_ji  = (a->share[j] & b->share[i]) ^ rij;
+
+            out->share[i] ^= t_ij;   /* add to share i */
+            out->share[j] ^= t_ji;   /* add to share j */
         }
-    }
 }
 
 

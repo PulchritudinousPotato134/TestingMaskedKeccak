@@ -1,6 +1,8 @@
 ../Core/Src/masked_gadgets.c:11:10:recombineForTest	2
-../Core/Src/masked_gadgets.c:18:5:test_masked_and_xor	4
-../Core/Src/masked_gadgets.c:65:5:test_masked_xor	5
-../Core/Src/masked_gadgets.c:111:6:fill_random_matrix	3
-../Core/Src/masked_gadgets.c:124:6:masked_xor	2
-../Core/Src/masked_gadgets.c:132:6:masked_and	4
+../Core/Src/masked_gadgets.c:17:5:test_masked_and_exhaustive_safe	6
+../Core/Src/masked_gadgets.c:72:5:test_masked_and_identity_safe	11
+../Core/Src/masked_gadgets.c:141:5:test_masked_and_xor	4
+../Core/Src/masked_gadgets.c:188:5:test_masked_xor	5
+../Core/Src/masked_gadgets.c:234:6:fill_random_matrix	3
+../Core/Src/masked_gadgets.c:247:6:masked_xor	2
+../Core/Src/masked_gadgets.c:255:6:masked_and	4

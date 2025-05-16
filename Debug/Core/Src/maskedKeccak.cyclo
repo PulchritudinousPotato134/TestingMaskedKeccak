@@ -3,7 +3,8 @@
 ../Core/Src/maskedKeccak.c:59:24:rol64	1
 ../Core/Src/maskedKeccak.c:65:6:masked_rho	4
 ../Core/Src/maskedKeccak.c:78:6:masked_pi	8
-../Core/Src/maskedKeccak.c:113:6:masked_chi	5
-../Core/Src/maskedKeccak.c:138:6:masked_iota	1
-../Core/Src/maskedKeccak.c:143:6:print_recombined_state	4
-../Core/Src/maskedKeccak.c:159:6:masked_keccak_round	3
+../Core/Src/maskedKeccak.c:116:6:masked_not	3
+../Core/Src/maskedKeccak.c:137:6:masked_chi	4
+../Core/Src/maskedKeccak.c:165:6:masked_iota	1
+../Core/Src/maskedKeccak.c:170:6:print_recombined_state	4
+../Core/Src/maskedKeccak.c:186:6:masked_keccak_round	3

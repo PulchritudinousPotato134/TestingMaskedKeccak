@@ -21,6 +21,6 @@ void masked_iota(masked_uint64_t state[5][5], uint64_t rc);
 
 void masked_keccakf_round(masked_uint64_t state[5][5], uint64_t rc, uint64_t r_chi[5][5][MASKING_N][MASKING_N]);
 
-
+void masked_not(masked_uint64_t *dst, const masked_uint64_t *src);
 
 #endif
