@@ -6,6 +6,21 @@
 
 extern RNG_HandleTypeDef hrng;
 
+const uint64_t RC[24] = {
+    0x0000000000000001ULL, 0x0000000000008082ULL,
+    0x800000000000808aULL, 0x8000000080008000ULL,
+    0x000000000000808bULL, 0x0000000080000001ULL,
+    0x8000000080008081ULL, 0x8000000000008009ULL,
+    0x000000000000008aULL, 0x0000000000000088ULL,
+    0x0000000080008009ULL, 0x000000008000000aULL,
+    0x000000008000808bULL, 0x800000000000008bULL,
+    0x8000000000008089ULL, 0x8000000000008003ULL,
+    0x8000000000008002ULL, 0x8000000000000080ULL,
+    0x000000000000800aULL, 0x800000008000000aULL,
+    0x8000000080008081ULL, 0x8000000000008080ULL,
+    0x0000000080000001ULL, 0x8000000080008008ULL
+};
+
 uint64_t get_random64(void) {
     uint32_t r1, r2;
     HAL_RNG_GenerateRandomNumber(&hrng, &r1);
@@ -79,64 +94,85 @@ void masked_pi(masked_uint64_t state[5][5])
 {
     masked_uint64_t tmp[5][5];
 
-    /* 1. Make a copy of the current masked state ------------------------- */
+    /* 1. copy ---------------------------------------------------------- */
     for (int x = 0; x < 5; ++x)
         for (int y = 0; y < 5; ++y)
             tmp[x][y] = state[x][y];
 
-    /* 2. Apply the Keccak π permutation to every share ------------------- */
+    /* 2. π permutation ------------------------------------------------- */
     for (int x = 0; x < 5; ++x)
         for (int y = 0; y < 5; ++y) {
-            int new_x = y;                       /* u */
-            int new_y = (2 * x + 3 * y) % 5;     /* v */
-            state[new_x][new_y] = tmp[x][y];     /* moves ALL shares   */
+            int new_x = y;                       /* u = y                 */
+            int new_y = (2 * x + 3 * y) % 5;     /* v = 2x + 3y (mod 5)   */
+            state[new_x][new_y] = tmp[x][y];     /* move ALL shares       */
         }
-
-    /* 3. Re-align the mask: force XOR(shares) == share[0] ---------------- */
-    for (int x = 0; x < 5; ++x)
-        for (int y = 0; y < 5; ++y) {
-            uint64_t parity = 0;
-            for (int i = 0; i < MASKING_N; ++i)
-                parity ^= state[x][y].share[i];  /* current XOR */
-
-            /* delta = XOR(shares) ⊕ share[0]  ==  XOR(all other shares)   */
-            uint64_t delta = parity ^ state[x][y].share[0];
-
-            /* flip the bits of share[0] that are present in the other
-               shares so that the overall XOR collapses to share[0] again */
-            state[x][y].share[0] ^= delta;
-        }
+    /* nothing else! */
 }
+
+
 
 
 // === CHI ===
-void masked_chi(masked_uint64_t state[5][5],
-                uint64_t r[5][5][MASKING_N][MASKING_N]) {
-    masked_uint64_t temp[5];
+/* ─── tiny helper: masked bitwise NOT (Boolean shares) ───────────────── */
+/* ─── Boolean-masked bitwise NOT ───────────────────────────────────────
+   dst ← ¬src   (while preserving the XOR-mask invariant)              */
+void masked_not(masked_uint64_t *dst,
+                              const masked_uint64_t *src)
+{
+    /* 1.  Invert every share ------------------------------------------ */
+    for (size_t i = 0; i < MASKING_N; ++i)
+        dst->share[i] = ~src->share[i];
 
+    /* 2.  Re-align the mask so that XOR(shares) == ¬XOR(original) ----- */
+    uint64_t orig_parity = 0, inv_parity = 0;
+    for (size_t i = 0; i < MASKING_N; ++i) {
+        orig_parity ^= src->share[i];
+        inv_parity  ^= dst->share[i];
+    }
+    /* delta is the amount by which the parity is off */
+    uint64_t delta = inv_parity ^ ~orig_parity;
+
+    /* flip ‘delta’ in ONE share (here: share 0) */
+    dst->share[0] ^= delta;
+}
+
+/* ─── χ step with correct NOT ───────────────────────────────────────── */
+void masked_chi(masked_uint64_t out[5][5],
+                           const masked_uint64_t in[5][5],
+                           const uint64_t r[5][5][MASKING_N][MASKING_N]) {
     for (int y = 0; y < 5; y++) {
         for (int x = 0; x < 5; x++) {
-            temp[x] = state[x][y];
-        }
+            const masked_uint64_t *a = &in[x][y];
+            const masked_uint64_t *b = &in[(x + 1) % 5][y];
+            const masked_uint64_t *c = &in[(x + 2) % 5][y];
+            masked_uint64_t t1, t2;
 
-        for (int x = 0; x < 5; x++) {
-            masked_uint64_t notA1;
-            for (int i = 0; i < MASKING_N; i++) {
-                notA1.share[i] = ~temp[(x + 1) % 5].share[i];
-            }
-
-            masked_uint64_t and_result;
-            masked_and(&and_result,
-                       &notA1,
-                       &temp[(x + 2) % 5],
-                       r[x][y]);
-
-            masked_xor(&state[x][y], &temp[x], &and_result);
+            masked_not(&t1, b);
+            masked_and(&t2, &t1, c, r[x][y]);
+            masked_xor(&out[x][y], a, &t2);
         }
     }
 }
+
+
+
+
 void masked_iota(masked_uint64_t state[5][5], uint64_t rc) {
-    state[0][0].share[0] ^= rc;
+    // 1. Recombine the lane value (x = 0, y = 0)
+    uint64_t value = 0;
+    for (int i = 0; i < MASKING_N; ++i)
+        value ^= state[0][0].share[i];
+
+    // 2. Apply round constant
+    value ^= rc;
+
+    // 3. Re-mask the new value randomly
+    uint64_t acc = value;
+    for (int i = 1; i < MASKING_N; ++i) {
+        state[0][0].share[i] = get_random64();
+        acc ^= state[0][0].share[i];
+    }
+    state[0][0].share[0] = acc;
 }
 
 // Helper function (add this)
@@ -178,12 +214,25 @@ void masked_keccak_round(masked_uint64_t state[5][5], uint64_t rc) {
     masked_pi(state);
 
     print_recombined_state(state, "After Pi");
-    masked_chi(state, r_chi);
+    masked_uint64_t new_state[5][5];
+    uint64_t rand_chi[5][5][MASKING_N][MASKING_N];
+      for (int y = 0; y < 5; y++)
+          for (int x = 0; x < 5; x++)
+              fill_random_matrix(rand_chi[x][y]);
 
-    print_recombined_state(state, "After Chi");
-    masked_iota(state, rc);
+    masked_chi(new_state, state, rand_chi);
 
-    print_recombined_state(state, "After Iota");
+    print_recombined_state(new_state, "After Chi");
+    masked_iota(new_state, rc);
+
+    print_recombined_state(new_state, "After Iota");
+
+    // Replace state with new_state after full round
+    for (int x = 0; x < 5; x++)
+        for (int y = 0; y < 5; y++)
+            state[x][y] = new_state[x][y];
+
+
 
 }
 

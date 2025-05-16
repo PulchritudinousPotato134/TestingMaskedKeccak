@@ -2,6 +2,9 @@
 #include "masked_gadgets.h"
 #include "stm32f4xx_hal.h"
 #include <stdio.h>
+#include "maskedKeccak.h"
+
+
 
 uint64_t masked_recombine(const masked_uint64_t *m) {
     uint64_t result = 0;
@@ -36,21 +39,6 @@ void debug_print_masked_state(masked_uint64_t state[5][5]) {
 
 extern void masked_keccak_round(masked_uint64_t state[5][5], uint64_t rc);
 
-// Round constants from the Keccak spec
-static const uint64_t keccak_round_constants[24] = {
-    0x0000000000000001ULL, 0x0000000000008082ULL,
-    0x800000000000808aULL, 0x8000000080008000ULL,
-    0x000000000000808bULL, 0x0000000080000001ULL,
-    0x8000000080008081ULL, 0x8000000000008009ULL,
-    0x000000000000008aULL, 0x0000000000000088ULL,
-    0x0000000080008009ULL, 0x000000008000000aULL,
-    0x000000008000808bULL, 0x800000000000008bULL,
-    0x8000000000008089ULL, 0x8000000000008003ULL,
-    0x8000000000008002ULL, 0x8000000000000080ULL,
-    0x000000000000800aULL, 0x800000008000000aULL,
-    0x8000000080008081ULL, 0x8000000000008080ULL,
-    0x0000000080000001ULL, 0x8000000080008008ULL
-};
 
 void masked_keccak_f1600(masked_uint64_t state[5][5]) {
 	debug_print_masked_state(state);
@@ -67,7 +55,7 @@ void masked_keccak_f1600(masked_uint64_t state[5][5]) {
 
 
     for (int i = 0; i < 24; i++) {
-        masked_keccak_round(state, keccak_round_constants[i]);
+        masked_keccak_round(state, RC[i]);
     }
     debug_print_masked_state(state);
     printf("== After masked_keccak_f1600 ==\n");

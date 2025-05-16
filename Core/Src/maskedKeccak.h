@@ -3,7 +3,8 @@
 
 #include "masked_types.h"
 
-
+// Round constants from the Keccak spec
+extern const uint64_t RC[24];
 // theta: masked parity mixing
 void masked_theta(masked_uint64_t state[5][5]);
 
@@ -14,7 +15,9 @@ void masked_rho(masked_uint64_t state[5][5]);
 void masked_pi(masked_uint64_t state[5][5]);
 
 // chi: nonlinear substitution (needs masked_and)
-void masked_chi(masked_uint64_t state[5][5], uint64_t r[5][5][MASKING_N][MASKING_N]);
+void masked_chi(masked_uint64_t out[5][5],
+        const masked_uint64_t in[5][5],
+        const uint64_t r[5][5][MASKING_N][MASKING_N]);
 
 // iota: XOR round constant into lane 0, only into share[0]
 void masked_iota(masked_uint64_t state[5][5], uint64_t rc);

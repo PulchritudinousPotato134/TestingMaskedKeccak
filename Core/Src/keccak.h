@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 
+extern const uint64_t RC[24];
 /* 64 bitwise rotation to left */
 #define ROTL64(x, y) (((x) << (y)) | ((x) >> (64 - (y))))
 
