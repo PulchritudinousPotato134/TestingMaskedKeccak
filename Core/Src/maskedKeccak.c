@@ -17,70 +17,50 @@ uint64_t get_random64(void) {
 void masked_theta(masked_uint64_t state[5][5]) {
     masked_uint64_t C[5] = {0};
     masked_uint64_t D[5] = {0};
-    masked_uint64_t debug_state[5][5] = {0};
 
-    // Compute C[x] = A[x,0] ^ A[x,1] ^ ... ^ A[x,4]
-    printf("== C[x] ==\n");
+    // === Compute C[x] = A[x][0] ^ A[x][1] ^ ... ^ A[x][4] ===
     for (int x = 0; x < 5; x++) {
         C[x] = state[x][0];
         for (int y = 1; y < 5; y++) {
             masked_xor(&C[x], &C[x], &state[x][y]);
         }
-
-        uint64_t recombined = 0;
-        for (int i = 0; i < MASKING_N; i++) recombined ^= C[x].share[i];
-        uint32_t hi = (uint32_t)(recombined >> 32);
-        uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
-        printf("C[%d] = %08lX%08lX\n", x, hi, lo);
-
     }
 
-    // Compute D[x] = C[x-1] ^ ROTL(C[x+1], 1)
-    printf("\n== D[x] ==\n");
+    // === Compute D[x] = C[x-1] ^ ROTL(C[x+1], 1) ===
     for (int x = 0; x < 5; x++) {
-        masked_uint64_t rotated;
         for (int i = 0; i < MASKING_N; i++) {
-            rotated.share[i] = (C[(x + 1) % 5].share[i] << 1) |
-                               (C[(x + 1) % 5].share[i] >> (64 - 1));
+            uint64_t c_plus_1 = C[(x + 1) % 5].share[i];
+            uint64_t rot = (c_plus_1 << 1) | (c_plus_1 >> (64 - 1));
+            D[x].share[i] = C[(x + 4) % 5].share[i] ^ rot;
         }
-
-        masked_xor(&D[x], &C[(x + 4) % 5], &rotated);
-
-        uint64_t recombined = 0;
-        for (int i = 0; i < MASKING_N; i++) recombined ^= D[x].share[i];
-        uint32_t hi = (uint32_t)(recombined >> 32);
-        uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
-        printf("D[%d] = %08lX%08lX\n", x, hi, lo);
-
     }
 
-    // Apply D[x] to state[x][y]
-    printf("\n== Updated state[x][y] ==\n");
+    // === Apply D[x] to all lanes in column x ===
     for (int x = 0; x < 5; x++) {
         for (int y = 0; y < 5; y++) {
-            masked_xor(&state[x][y], &state[x][y], &D[x]);
-
-            // Debug print after D[x] applied
-            uint64_t recombined = 0;
-            for (int i = 0; i < MASKING_N; i++) recombined ^= state[x][y].share[i];
-            uint32_t hi = (uint32_t)(recombined >> 32);
-            uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
-            printf("state[%d][%d] = %08lX%08lX\n", x, y, hi, lo);
+            for (int i = 0; i < MASKING_N; i++) {
+                state[x][y].share[i] ^= D[x].share[i];
+            }
         }
     }
-
 }
 
 
 
 // === RHO ===
 static const uint8_t keccak_rho_offsets[5][5] = {
-    {  0,  36,   3, 105, 210 },
-    {  1, 300,  10,  45,  66 },
-    {190,   6, 153,  15, 253 },
-    { 28,  55, 276,  91, 136 },
-    { 91, 276, 231, 120,  78 }
+    {  0, 36,  3, 41, 18 },
+    {  1, 44, 10, 45,  2 },
+    { 62,  6, 43, 15, 61 },
+    { 28, 55, 25, 21, 56 },
+    { 27, 20, 39,  8, 14 }
 };
+
+static inline uint64_t rol64(uint64_t x, unsigned int n) {
+    n %= 64;
+    return (x << n) | (x >> ((64 - n) % 64));
+}
+
 
 void masked_rho(masked_uint64_t state[5][5]) {
     for (int x = 0; x < 5; x++) {
@@ -88,28 +68,46 @@ void masked_rho(masked_uint64_t state[5][5]) {
             uint8_t r = keccak_rho_offsets[x][y];
             for (int i = 0; i < MASKING_N; i++) {
                 uint64_t value = state[x][y].share[i];
-                state[x][y].share[i] = (value << r) | (value >> (64 - r));
+                state[x][y].share[i] = rol64(value, r);
             }
         }
     }
 }
 
 // === PI ===
-void masked_pi(masked_uint64_t state[5][5]) {
-    masked_uint64_t temp[5][5];
+void masked_pi(masked_uint64_t state[5][5])
+{
+    masked_uint64_t tmp[5][5];
 
-    for (int x = 0; x < 5; x++) {
-        for (int y = 0; y < 5; y++) {
-            temp[x][y] = state[x][y];
-        }
-    }
+    /* 1. Make a copy of the current masked state ------------------------- */
+    for (int x = 0; x < 5; ++x)
+        for (int y = 0; y < 5; ++y)
+            tmp[x][y] = state[x][y];
 
-    for (int x = 0; x < 5; x++) {
-        for (int y = 0; y < 5; y++) {
-            state[y][(2 * x + 3 * y) % 5] = temp[x][y];
+    /* 2. Apply the Keccak π permutation to every share ------------------- */
+    for (int x = 0; x < 5; ++x)
+        for (int y = 0; y < 5; ++y) {
+            int new_x = y;                       /* u */
+            int new_y = (2 * x + 3 * y) % 5;     /* v */
+            state[new_x][new_y] = tmp[x][y];     /* moves ALL shares   */
         }
-    }
+
+    /* 3. Re-align the mask: force XOR(shares) == share[0] ---------------- */
+    for (int x = 0; x < 5; ++x)
+        for (int y = 0; y < 5; ++y) {
+            uint64_t parity = 0;
+            for (int i = 0; i < MASKING_N; ++i)
+                parity ^= state[x][y].share[i];  /* current XOR */
+
+            /* delta = XOR(shares) ⊕ share[0]  ==  XOR(all other shares)   */
+            uint64_t delta = parity ^ state[x][y].share[0];
+
+            /* flip the bits of share[0] that are present in the other
+               shares so that the overall XOR collapses to share[0] again */
+            state[x][y].share[0] ^= delta;
+        }
 }
+
 
 // === CHI ===
 void masked_chi(masked_uint64_t state[5][5],
@@ -137,20 +135,10 @@ void masked_chi(masked_uint64_t state[5][5],
         }
     }
 }
-
 void masked_iota(masked_uint64_t state[5][5], uint64_t rc) {
-    // Split rc into shares that XOR to rc
-    uint64_t r[MASKING_N];
-    r[0] = rc;
-    for (int i = 1; i < MASKING_N; i++) {
-        r[i] = get_random64();       // Get a fresh random share
-        r[0] ^= r[i];                // Ensure all shares XOR to original rc
-    }
-
-    for (int i = 0; i < MASKING_N; i++) {
-        state[0][0].share[i] ^= r[i];
-    }
+    state[0][0].share[0] ^= rc;
 }
+
 // Helper function (add this)
 void print_recombined_state(masked_uint64_t state[5][5], const char *label) {
     printf("== %s (Recombined) ==\n", label);

@@ -18,5 +18,9 @@ void masked_and(masked_uint64_t *out,
                 const masked_uint64_t *b,
                 const uint64_t r[MASKING_N][MASKING_N]);
 
+
+int test_masked_and_xor(void);
+int test_masked_xor(void) ;
+
 #endif
 

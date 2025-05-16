@@ -137,6 +137,171 @@ void run_masked_keccak_round_test(void) {
     // === Run the full round ===
     masked_keccak_round(state, rc);
 }
+int test_masked_chi(void) {
+    int fail_count = 0;
+
+    uint64_t input[5][5] = {
+        {0x191A1F1C15161316, 0x8080808040808080, 0x4C4844405C585451, 0xA0E8F0D8F88890B8, 0x098908880B8B0A8A},
+        {0x62320A92A2F2C252, 0x7141D1E1B1911121, 0x4C8DCD0F4F8ECE0C, 0x61412161E1C1A181, 0x8E0B8B0A8A098908},
+        {0xF1D9C18991B9A1E9, 0xF0E0D0C0B0A090B0, 0x28262422382E2C2A, 0xA8BCB094988C82A4, 0x8F0D8C88890B8A0E},
+        {0xA28262422382E2C2, 0xC464152545E584A4, 0x1217141D1E1B1911, 0x1B9A1E9F1D9C1899, 0x28242C3C3834302C},
+        {0x85C5074786C64444, 0x062646E687A7C767, 0x68605850485A7870, 0x1C17161514131211, 0xA4A8BCB094988C82}
+    };
+
+    uint64_t expected[5][5] = {
+        {0x790A1F9C95A69356, 0xF0C05040F00090A0, 0x444C404254565859, 0x80E8D0D878081038, 0x8780808083828282},
+        {0xC2B24A92A3726292, 0xB121C1E1B1319181, 0x4C8BC90F5784C60C, 0x69D931F5F94DA101, 0x860F870282098904},
+        {0x7159C3CB933BE1A9, 0xF4C4D4E4B5051494, 0x282634323034343A, 0xB0AEA6818C9C92B5, 0xAF2DA0B8991B8A0E},
+        {0xA38265462784E2C6, 0xC46415A5456504A4, 0x5A57545D56434941, 0x1B9A0E8F0D9C0889, 0x28AC24BC38BC38AE},
+        {0x85D70D5786D44656, 0x0626C6668727C767, 0x24681C5004523C70, 0x3C573655F4939291, 0xACA1B4B89E91848A}
+    };
+
+    masked_uint64_t masked_state[5][5];
+    uint64_t r[5][5][MASKING_N][MASKING_N];
+
+    // Mask the input
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            uint64_t val = input[x][y];
+            masked_value_set(&masked_state[x][y], val);
+            fill_random_matrix(r[x][y]);  // Fresh randomness per lane
+        }
+    }
+
+    // Apply masked Chi
+    masked_chi(masked_state, r);
+
+    // Compare to expected
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            uint64_t recombined = 0;
+            for (int i = 0; i < MASKING_N; i++) {
+                recombined ^= masked_state[x][y].share[i];
+            }
+
+            if (recombined != expected[x][y]) {
+                printf("FAIL: chi[%d][%d] = %016llX (expected %016llX)\n",
+                    x, y, recombined, expected[x][y]);
+                fail_count++;
+            }
+        }
+    }
+
+    if (fail_count == 0) {
+        printf("PASS: masked_chi output matches reference.\n");
+    }
+
+    return fail_count;
+}
+
+int test_masked_rho(void) {
+    printf("== TESTING masked_rho ==\n");
+
+    // 1. Initialize a known reference state
+    uint64_t ref_state[25] = {0};
+    for (int i = 0; i < 25; i++) {
+        ref_state[i] = (uint64_t)i * 0x0101010101010101ULL;  // predictable pattern
+    }
+
+    // 2. Create masked shares (simple XOR-based scheme for test)
+    masked_uint64_t masked_state[5][5];
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < 5; x++) {
+            uint64_t val = ref_state[5 * y + x];
+            uint64_t sum = 0;
+            for (int i = 0; i < MASKING_N - 1; i++) {
+                masked_state[x][y].share[i] = get_random64();
+                sum ^= masked_state[x][y].share[i];
+            }
+            masked_state[x][y].share[MASKING_N - 1] = val ^ sum;
+        }
+    }
+
+    // 3. Apply masked Rho
+    masked_rho(masked_state);
+
+    // 4. Apply reference Rho
+    uint64_t expected[25];
+    memcpy(expected, ref_state, sizeof(ref_state));
+    rho(expected);
+
+    // 5. Recombine masked result and compare
+    int failures = 0;
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < 5; x++) {
+            uint64_t recombined = 0;
+            for (int i = 0; i < MASKING_N; i++) {
+                recombined ^= masked_state[x][y].share[i];
+            }
+
+            uint64_t expected_val = expected[5 * y + x];
+            if (recombined != expected_val) {
+                printf("FAIL @ [%d][%d]: expected %016llX, got %016llX\n",
+                       x, y, (unsigned long long)expected_val, (unsigned long long)recombined);
+                failures++;
+            }
+        }
+    }
+
+    if (failures == 0) {
+        printf("PASS: masked_rho output matches reference.\n\n");
+    } else {
+        printf("FAIL: %d mismatches in masked_rho.\n\n", failures);
+    }
+
+    return failures;
+}
+
+void test_masked_pi(void) {
+    printf("== TESTING masked_pi ==\n");
+
+    // Step 1: Prepare reference and masked states
+    uint64_t ref_state[25];
+    masked_uint64_t masked_state[5][5];
+
+    // Fill both with known pattern (diagonal increasing)
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < 5; x++) {
+            uint64_t val = ((uint64_t)(5 * y + x) << 4) | (x ^ y);
+            ref_state[5 * y + x] = val;
+            for (int i = 0; i < MASKING_N; i++) {
+                masked_state[x][y].share[i] = (i == 0) ? val : get_random64();
+            }
+        }
+    }
+
+    // Step 2: Apply reference pi
+    pi(ref_state);
+
+    // Step 3: Apply masked pi
+    masked_pi(masked_state);  // <- you need to implement this
+
+    // Step 4: Compare recombined masked state to reference
+    int pass = 1;
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < 5; x++) {
+            uint64_t recombined = 0;
+            for (int i = 0; i < MASKING_N; i++) {
+                recombined ^= masked_state[x][y].share[i];
+            }
+            uint64_t expected = ref_state[5 * y + x];
+            if (recombined != expected) {
+            	uint32_t lo = (uint32_t)(recombined & 0xFFFFFFFF);
+            	uint32_t hi = (uint32_t)(recombined >> 32);
+            	printf("FAIL: M[%d][%d] = %08X%08X, expected %08X%08X\n", x, y, hi, lo,
+            	       (uint32_t)(expected >> 32), (uint32_t)(expected & 0xFFFFFFFF));
+
+                pass = 0;
+            }
+        }
+    }
+
+    if (pass) {
+        printf("PASS: masked_pi output matches reference.\n");
+    }
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -188,7 +353,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
+	  test_masked_rho();
+	  test_masked_pi();
 	      const uint8_t input[] = {
 	          0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	          0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -239,6 +405,22 @@ int main(void)
 	          uint32_t hi = (uint32_t)(state[i] >> 32);
 	          printf("State[%02d]: %08lX%08lX\n", i, hi, lo);
 	      }
+
+	      // Print state before rho
+	  	      printf("== Before THETA MASKED ==\n");
+	  	      for (int i = 0; i < 25; i++) {
+	  	          uint32_t loRho = (uint32_t)(state[i] & 0xFFFFFFFF);
+	  	          uint32_t hiRho = (uint32_t)(state[i] >> 32);
+	  	          printf("State[%02d]: %08lX%08lX\n", i, hiRho, loRho);
+	  	      }
+
+	  	      // Print state after rho
+	  	      printf("== AFTER THETA MASKED  \n");
+	  	      for (int i = 0; i < 25; i++) {
+	  	    	  uint32_t loRhoa = (uint32_t)(state[i] & 0xFFFFFFFF);
+				  uint32_t hiRhoa = (uint32_t)(state[i] >> 32);
+				  printf("State[%02d]: %08lX%08lX\n", i, hiRhoa, loRhoa);
+	  	      }
 
 
 
