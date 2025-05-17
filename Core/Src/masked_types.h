@@ -2,9 +2,7 @@
 #define MASKED_TYPES_H
 
 #include <stdint.h>
-
-#define MASKING_ORDER 3 // Set your order here
-#define MASKING_N (MASKING_ORDER + 1)
+#include "params.h"
 
 typedef struct {
     uint64_t share[MASKING_N];

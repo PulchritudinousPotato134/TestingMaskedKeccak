@@ -1,11 +1,12 @@
 #include "masked_types.h"
+#include "params.h"
 #include "global_rng.h"
 #include "stm32f4xx_hal_rng.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include "masked_gadgets.h"
-
+#include "global_rng.h"
 
 void fill_random_matrix(uint64_t r[MASKING_N][MASKING_N]) {
     for (size_t i = 0; i < MASKING_N; i++) {

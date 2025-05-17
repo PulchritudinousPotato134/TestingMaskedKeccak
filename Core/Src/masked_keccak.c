@@ -51,13 +51,6 @@ const uint64_t RC[24] = {
     0x0000000080000001ULL, 0x8000000080008008ULL
 };
 
-uint64_t get_random64(void) {
-    uint32_t r1, r2;
-    HAL_RNG_GenerateRandomNumber(&hrng, &r1);
-    HAL_RNG_GenerateRandomNumber(&hrng, &r2);
-    return ((uint64_t)r1 << 32) | r2;
-}
-
 
 
 //Each value is a rotation offset used in the Rho step
@@ -95,9 +88,19 @@ void masked_value_set(masked_uint64_t *out, uint64_t value) {
 
 //======Sponge Phases======
 
-// Absorbs input bytes into a masked Keccak state.
-// This is the first phase of the sponge construction.
-// Each block of input is XORed into the state, followed by a permutation.
+/**
+ * Each block of input is XORed into the state, followed by a permutation.
+ * Absorbs input bytes into a masked Keccak state.
+ *
+  *This is the first phase of the sponge construction.
+ * Splits the input into rate-sized blocks and XORs them into the state.
+ * Final block is padded using the Keccak domain-specific padding rule.
+ *
+ * @param state      5x5 masked state array to update
+ * @param input      Pointer to message bytes
+ * @param input_len  Length of the message in bytes
+ * @param rate       Sponge bitrate in bytes (e.g. 136 for SHA3-256)
+ */
 void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t input_len, size_t rate) {
     // === Initialize state to zero ===
     for (int x = 0; x < 5; x++) {
@@ -171,8 +174,19 @@ void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t inp
 }
 
 
-// Squeezes output bytes from a masked Keccak state.
-// This is the final phase in sponge-based hashing or XOF like SHAKE.
+
+/**
+ * Squeezes output bytes from a masked Keccak state.
+ *
+ * This is the final phase in sponge-based hashing or XOF like SHAKE.
+ * Recombines masked lanes to extract real output bytes.
+ * Applies Keccak-f permutations between squeezing rounds if more output is needed.
+ *
+ * @param output      Buffer to receive the output
+ * @param output_len  Number of output bytes desired
+ * @param state       5x5 masked state to squeeze from
+ * @param rate        Sponge bitrate in bytes (e.g. 168 for SHAKE128)
+ */
 void masked_squeeze(uint8_t *output, size_t output_len, masked_uint64_t state[5][5], size_t rate) {
     size_t offset = 0;
 
@@ -205,6 +219,12 @@ void masked_squeeze(uint8_t *output, size_t output_len, masked_uint64_t state[5]
 
 //======Five Main Round Functions======
 
+/**
+ * Apply the masked Theta step of Keccak.
+ *
+ * Theta mixes bits across columns using masked XORs to ensure diffusion.
+ * Maintains share alignment (linear operation).
+ */
 void masked_theta(masked_uint64_t state[5][5]) {
     masked_uint64_t C[5] = {0};  // Column parity
     masked_uint64_t D[5] = {0};  // Parity difference per column
@@ -239,6 +259,12 @@ void masked_theta(masked_uint64_t state[5][5]) {
     }
 }
 
+/**
+ * Apply the masked Rho step of Keccak.
+ *
+ * Rho rotates each lane by a fixed constant offset (same across shares),
+ * spreading bits to neighboring positions while preserving the mask structure.
+ */
 void masked_rho(masked_uint64_t state[5][5]) {
     // Rho rotates each lane by a constant offset to scatter bits.
     // It’s important the same rotation is applied to every share
@@ -255,6 +281,12 @@ void masked_rho(masked_uint64_t state[5][5]) {
 }
 
 
+/**
+ * Apply the masked Pi step of Keccak.
+ *
+ * Pi rearranges lanes within the 5x5 grid using a predefined permutation.
+ * All shares of a lane are moved together to preserve masking validity.
+ */c
 void masked_pi(masked_uint64_t state[5][5]) {
     masked_uint64_t tmp[5][5];
 
@@ -274,7 +306,12 @@ void masked_pi(masked_uint64_t state[5][5]) {
         }
 }
 
-
+ /**
+  * Apply the masked Pi step of Keccak.
+  *
+  * Pi rearranges lanes within the 5x5 grid using a predefined permutation.
+  * All shares of a lane are moved together to preserve masking validity.
+  */
 void masked_chi(masked_uint64_t out[5][5],
                 const masked_uint64_t in[5][5],
                 const uint64_t r[5][5][MASKING_N][MASKING_N]) {
@@ -297,7 +334,15 @@ void masked_chi(masked_uint64_t out[5][5],
 }
 
 
-
+/**
+ * Apply the masked Iota step of Keccak.
+ *
+ * Injects the round constant into lane (0,0) to break symmetry.
+ * Requires re-masking the result securely to maintain masking invariants.
+ *
+ * @param state Masked state to update
+ * @param rc    Round constant for this permutation round
+ */
 void masked_iota(masked_uint64_t state[5][5], uint64_t rc) {
     // Iota introduces asymmetry by injecting a round constant into lane (0,0).
     // This breaks symmetry and helps distinguish rounds.

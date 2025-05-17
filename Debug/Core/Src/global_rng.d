@@ -1,6 +1,4 @@
-Core/Src/masked_keccak.o: ../Core/Src/masked_keccak.c \
- ../Core/Src/masked_types.h ../Core/Src/params.h \
- ../Core/Src/masked_gadgets.h \
+Core/Src/global_rng.o: ../Core/Src/global_rng.c ../Core/Src/global_rng.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
  ../Core/Inc/stm32f4xx_hal_conf.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h \
@@ -34,11 +32,8 @@ Core/Src/masked_keccak.o: ../Core/Src/masked_keccak.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hcd.h \
- ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h \
- ../Core/Src/debug_log.h
-../Core/Src/masked_types.h:
-../Core/Src/params.h:
-../Core/Src/masked_gadgets.h:
+ ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
+../Core/Src/global_rng.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h:
@@ -73,4 +68,3 @@ Core/Src/masked_keccak.o: ../Core/Src/masked_keccak.c \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hcd.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h:
-../Core/Src/debug_log.h:

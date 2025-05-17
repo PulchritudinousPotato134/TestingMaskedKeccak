@@ -6,4 +6,5 @@
 // Declare hrng as external so other files can use it
 extern RNG_HandleTypeDef hrng;
 
+
 #endif

@@ -1,5 +1,5 @@
 Core/Src/masked_gadgets.o: ../Core/Src/masked_gadgets.c \
- ../Core/Src/masked_types.h ../Core/Src/global_rng.h \
+ ../Core/Src/masked_types.h ../Core/Src/params.h ../Core/Src/global_rng.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
  ../Core/Inc/stm32f4xx_hal_conf.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h \
@@ -36,6 +36,7 @@ Core/Src/masked_gadgets.o: ../Core/Src/masked_gadgets.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h \
  ../Core/Src/masked_gadgets.h
 ../Core/Src/masked_types.h:
+../Core/Src/params.h:
 ../Core/Src/global_rng.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
