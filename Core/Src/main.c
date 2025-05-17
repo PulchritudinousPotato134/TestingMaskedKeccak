@@ -29,6 +29,7 @@ extern const uint64_t RC[24];
 #include "masked_gadgets.h"
 #include "keccak.h"
 #include "sha_shake.h"
+#include "test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -420,6 +421,7 @@ int main(void)
 	  test_masked_keccak_round_vs_reference();
 	    test_masked_vs_reference_sha3_256();
 	    test_masked_vs_reference_sha3_512();
+	    test_kat_sha3_all();
 	  /*}
 	  const uint8_t input[] = "MaskedKeccakTest";
 	     uint8_t unmasked_output[64];
