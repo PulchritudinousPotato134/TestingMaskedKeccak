@@ -22,7 +22,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "maskedKeccak.h"
+#include "global_rng.h"
+#include <string.h>
+#include <stdio.h>
+#include "sha_shake.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,12 +74,18 @@ int _write(int file, char *ptr, int len) {
     HAL_UART_Transmit(&huart2, (uint8_t*) ptr, len, HAL_MAX_DELAY);
     return len;
 }
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
+void print_hex(const char *label, const uint8_t *data, size_t len) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
 
 /**
   * @brief  The application entry point.
@@ -112,7 +122,12 @@ int main(void)
   MX_USB_HOST_Init();
   MX_RNG_Init();
   MX_USART2_UART_Init();
+
+
   /* USER CODE BEGIN 2 */
+  __HAL_RCC_RNG_CLK_ENABLE();
+  HAL_RNG_Init(&hrng);
+  setvbuf(stdout, NULL, _IONBF, 0); // Disable buffering completely
 
   /* USER CODE END 2 */
 
@@ -120,7 +135,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  test_masked_keccak();
+
+
     /* USER CODE END WHILE */
     MX_USB_HOST_Process();
 
@@ -128,6 +144,7 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+
 
 /**
   * @brief System Clock Configuration

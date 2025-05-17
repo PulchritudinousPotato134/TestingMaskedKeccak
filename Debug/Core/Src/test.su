@@ -1,0 +1,2 @@
+../Core/Src/test.c:9:13:assert_output	40	static
+../Core/Src/test.c:60:6:test_kat_sha3_all	72	static
