@@ -33,11 +33,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hcd.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h \
- ../USB_HOST/App/usb_host.h ../Core/Src/maskedKeccak.h \
- ../Core/Src/masked_types.h ../Core/Src/fips202.h ../Core/Src/params.h \
- ../Core/Src/structs.h ../Core/Src/masked_sha3_512.h \
- ../Core/Src/global_rng.h ../Core/Src/masked_absorb.h \
- ../Core/Src/masked_gadgets.h ../Core/Src/keccak.h
+ ../USB_HOST/App/usb_host.h ../Core/Src/global_rng.h \
+ ../Core/Src/masked_gadgets.h ../Core/Src/masked_types.h \
+ ../Core/Src/keccak.h ../Core/Src/sha_shake.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -74,13 +72,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hcd.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h:
 ../USB_HOST/App/usb_host.h:
-../Core/Src/maskedKeccak.h:
-../Core/Src/masked_types.h:
-../Core/Src/fips202.h:
-../Core/Src/params.h:
-../Core/Src/structs.h:
-../Core/Src/masked_sha3_512.h:
 ../Core/Src/global_rng.h:
-../Core/Src/masked_absorb.h:
 ../Core/Src/masked_gadgets.h:
+../Core/Src/masked_types.h:
 ../Core/Src/keccak.h:
+../Core/Src/sha_shake.h:

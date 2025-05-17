@@ -23,15 +23,12 @@ extern const uint64_t RC[24];
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "maskedKeccak.h"
-#include "fips202.h"
-#include "masked_sha3_512.h"
 #include "global_rng.h"
 #include <string.h>
 #include <stdio.h>
-#include "masked_absorb.h"
 #include "masked_gadgets.h"
 #include "keccak.h"
+#include "sha_shake.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -294,6 +291,82 @@ void test_full_keccak_rounds(void)
     printf("✓ all 24 masked rounds match reference Keccak-F[1600]\n");
 }
 
+void test_masked_keccak_round_vs_reference(void) {
+    // === 1. Setup known input ===
+    uint64_t ref_state[25];
+    for (int i = 0; i < 25; i++)
+        ref_state[i] = i * 0x0101010101010101ULL;
+
+    masked_uint64_t masked_state[5][5];
+    fill_masked_state(masked_state, ref_state);
+
+    uint64_t tmp_ref[25], tmp_masked[25];
+
+    // === 2. Apply reference round ===
+    memcpy(tmp_ref, ref_state, sizeof(ref_state));
+    theta(tmp_ref);
+    rho(tmp_ref);
+    pi(tmp_ref);
+    chi(tmp_ref);
+    iota(tmp_ref, 0);
+
+    // === 3. Apply masked round ===
+    masked_keccak_round(masked_state, RC[0]);
+    recombine_masked_state(tmp_masked, masked_state);
+
+    // === 4. Compare ===
+    print_diff("Keccak-Round", tmp_ref, tmp_masked);
+}
+extern int TWOFIVESIX(uint8_t* M, int l, uint8_t* O);
+extern int FIVEONETWO(uint8_t* M, int l, uint8_t* O);
+
+void test_masked_vs_reference_sha3_256(void) {
+    const char *msg = "Masked Keccak Test Vector: SHA3-256";
+    size_t len = strlen(msg);
+
+    uint8_t ref_out[32];
+    uint8_t masked_out[32];
+
+    // Call reference implementation
+    TWOFIVESIX((uint8_t *)msg, (int)len, ref_out);
+
+    // Call masked implementation
+    masked_sha3_256(masked_out, (const uint8_t *)msg, len);
+
+    // Compare output
+    for (int i = 0; i < 32; ++i) {
+        if (ref_out[i] != masked_out[i]) {
+            printf("Mismatch SHA3-256 byte[%d]: ref=0x%02X, masked=0x%02X\n",
+                   i, ref_out[i], masked_out[i]);
+            assert(0);
+        }
+    }
+    printf("PASS: SHA3-256 masked output matches reference\n");
+}
+
+void test_masked_vs_reference_sha3_512(void) {
+    const char *msg = "Masked Keccak Test Vector: SHA3-512";
+    size_t len = strlen(msg);
+
+    uint8_t ref_out[64];
+    uint8_t masked_out[64];
+
+    // Call reference implementation
+    FIVEONETWO((uint8_t *)msg, (int)len, ref_out);
+
+    // Call masked implementation
+    masked_sha3_512(masked_out, (const uint8_t *)msg, len);
+
+    for (int i = 0; i < 64; ++i) {
+        if (ref_out[i] != masked_out[i]) {
+            printf("Mismatch SHA3-512 byte[%d]: ref=0x%02X, masked=0x%02X\n",
+                   i, ref_out[i], masked_out[i]);
+            assert(0);
+        }
+    }
+    printf("PASS: SHA3-512 masked output matches reference\n");
+}
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -344,7 +417,9 @@ int main(void)
   {
 	  test_masked_vs_reference_step_by_step();
 	  test_full_keccak_rounds();
-
+	  test_masked_keccak_round_vs_reference();
+	    test_masked_vs_reference_sha3_256();
+	    test_masked_vs_reference_sha3_512();
 	  /*}
 	  const uint8_t input[] = "MaskedKeccakTest";
 	     uint8_t unmasked_output[64];

@@ -1,6 +1,4 @@
-../Core/Src/masked_gadgets.c:11:10:recombineForTest	2
-../Core/Src/masked_gadgets.c:18:5:test_masked_and_xor	4
-../Core/Src/masked_gadgets.c:65:5:test_masked_xor	5
-../Core/Src/masked_gadgets.c:111:6:fill_random_matrix	3
-../Core/Src/masked_gadgets.c:124:6:masked_xor	2
-../Core/Src/masked_gadgets.c:132:6:masked_and	4
+../Core/Src/masked_gadgets.c:10:6:fill_random_matrix	3
+../Core/Src/masked_gadgets.c:23:6:masked_xor	2
+../Core/Src/masked_gadgets.c:31:6:masked_and	4
+../Core/Src/masked_gadgets.c:54:6:masked_not	3

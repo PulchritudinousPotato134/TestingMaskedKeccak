@@ -1,0 +1,13 @@
+../Core/Src/masked_keccak.c:54:10:get_random64	1
+../Core/Src/masked_keccak.c:75:24:rol64	1
+../Core/Src/masked_keccak.c:80:6:masked_value_set	2
+../Core/Src/masked_keccak.c:101:6:masked_absorb	12
+../Core/Src/masked_keccak.c:176:6:masked_squeeze	7
+../Core/Src/masked_keccak.c:208:6:masked_theta	8
+../Core/Src/masked_keccak.c:242:6:masked_rho	4
+../Core/Src/masked_keccak.c:258:6:masked_pi	5
+../Core/Src/masked_keccak.c:278:6:masked_chi	3
+../Core/Src/masked_keccak.c:301:6:masked_iota	3
+../Core/Src/masked_keccak.c:325:6:print_recombined_state	4
+../Core/Src/masked_keccak.c:340:6:masked_keccak_round	5
+../Core/Src/masked_keccak.c:386:6:masked_keccak_f1600	2
