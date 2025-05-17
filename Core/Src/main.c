@@ -218,6 +218,81 @@ void test_masked_vs_reference_step_by_step(void) {
 
 
 }
+static void masked_round(masked_uint64_t S[5][5],
+                         int r,
+                         uint64_t Rchi[5][5][MASKING_N][MASKING_N])
+{
+    masked_theta(S);
+    masked_rho  (S);
+    masked_pi   (S);
+    uint64_t r_chi[5][5][MASKING_N][MASKING_N];
+      for (int y = 0; y < 5; ++y)
+          for (int x = 0; x < 5; ++x)
+              fill_random_matrix(r_chi[x][y]);
+
+      masked_uint64_t chi_out[5][5];
+      masked_chi(chi_out, S, r_chi);
+      masked_iota (chi_out, RC[r]);
+
+      for (int y = 0; y < 5; ++y)
+          for (int x = 0; x < 5; ++x)
+              S[x][y] = chi_out[x][y];
+}
+
+static void reference_round(uint64_t *A, int r)
+{
+    theta(A);
+    rho  (A);
+    pi   (A);
+    chi  (A);
+    iota (A, r);
+}
+
+
+void test_full_keccak_rounds(void)
+{
+    /* --- 1. fresh deterministic state -------------------------------- */
+    uint64_t ref[25];
+    for (int i=0;i<25;i++)
+        ref[i] = 0x1111111111111111ULL * (i+1);   /* any pattern is fine */
+
+    masked_uint64_t mstate[5][5];
+    fill_masked_state(mstate, ref);
+
+    /* --- 2. run every round ------------------------------------------ */
+    for (int r = 0; r < 24; ++r) {
+
+        /* randomness for χ – new every round, every lane --------------- */
+        uint64_t Rchi[5][5][MASKING_N][MASKING_N];
+        for (int y = 0; y < 5; ++y)
+            for (int x = 0; x < 5; ++x)
+                fill_random_matrix(Rchi[x][y]);
+
+        reference_round(ref, r);
+        masked_round(mstate, r, Rchi);
+
+        uint64_t recon[25];
+        recombine_masked_state(recon, mstate);
+
+        /* --- 3. compare lane by lane --------------------------------- */
+        int fail = 0;
+        for (int i = 0; i < 25; ++i) {
+            if (recon[i] != ref[i]) {
+                printf("Round %2d lane %2d : ref=%016llX  mask=%016llX\n",
+                       r, i,
+                       (unsigned long long)ref[i],
+                       (unsigned long long)recon[i]);
+                fail = 1;
+            }
+        }
+        if (fail) {
+            printf("✗ round %d FAILED – stop early\n\n", r);
+            return;
+        }
+    }
+
+    printf("✓ all 24 masked rounds match reference Keccak-F[1600]\n");
+}
 
 /**
   * @brief  The application entry point.
@@ -268,7 +343,7 @@ int main(void)
   while (1)
   {
 	  test_masked_vs_reference_step_by_step();
-
+	  test_full_keccak_rounds();
 
 	  /*}
 	  const uint8_t input[] = "MaskedKeccakTest";
