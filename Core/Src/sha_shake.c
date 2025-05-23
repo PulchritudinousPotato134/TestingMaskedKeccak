@@ -144,3 +144,132 @@ void masked_shake128_sponge(uint8_t *output, size_t outlen, const uint8_t *input
 void masked_shake256_sponge(uint8_t *output, size_t outlen, const uint8_t *input, size_t inlen) {
     masked_keccak_sponge(output, outlen, input, inlen, SHAKE256_RATE, DOMAIN_SHAKE);
 }
+
+/// ~~~ARITHMETIC IMPLEMENTATIONS ~~~
+
+void masked_keccak_sponge_arithmetic(uint8_t *output, size_t output_len,
+                                     const uint8_t *input, size_t input_len,
+                                     size_t rate, uint8_t domain_sep) {
+    masked_uint64_t state[5][5];
+
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            for (int i = 0; i < MASKING_N; i++) {
+                state[x][y].share[i] = 0;
+            }
+        }
+    }
+
+    size_t offset = 0;
+    while (input_len >= rate) {
+        for (int i = 0; i < rate; i += 8) {
+            uint64_t lane = 0;
+            for (int j = 0; j < 8; j++) {
+                lane |= ((uint64_t)input[offset + i + j]) << (8 * j);
+            }
+
+            size_t x = (i / 8) % 5;
+            size_t y = (i / 8) / 5;
+
+            masked_uint64_t masked_lane;
+            masked_value_set_arithmetic(&masked_lane, lane);
+            masked_add_arithmetic(&state[x][y], &state[x][y], &masked_lane);
+        }
+
+        masked_keccak_f1600_arithmetic(state);
+        offset += rate;
+        input_len -= rate;
+    }
+
+    uint8_t block[rate];
+    memset(block, 0, rate);
+    memcpy(block, input + offset, input_len);
+
+    block[input_len] ^= domain_sep;
+    block[rate - 1] ^= 0x80;
+
+    for (int i = 0; i < rate; i += 8) {
+        uint64_t lane = 0;
+        for (int j = 0; j < 8 && (i + j) < rate; j++) {
+            lane |= ((uint64_t)block[i + j]) << (8 * j);
+        }
+
+        size_t x = (i / 8) % 5;
+        size_t y = (i / 8) / 5;
+
+        masked_uint64_t masked_lane;
+        masked_value_set_arithmetic(&masked_lane, lane);
+        masked_add_arithmetic(&state[x][y], &state[x][y], &masked_lane);
+    }
+
+    masked_keccak_f1600_arithmetic(state);
+    masked_squeeze_arithmetic(output, output_len, state, rate);
+}
+
+void masked_sha3_256_remain_masked_arithmetic(masked_u8_32 *output, const uint8_t *input, size_t input_len) {
+    masked_keccak_state ctx;
+    ctx.rate = 136;  // SHA3-256 bitrate
+
+    masked_shake128_absorb_once_arithmetic(&ctx, input, input_len);
+
+    // Squeeze one full 32-byte block
+    uint8_t tmp[32];
+    masked_shake128_squeezeblocks_arithmetic(tmp, 1, ctx.state, ctx.rate);
+
+    // Mask each byte additively
+    for (size_t i = 0; i < 32; ++i) {
+        uint8_t val = tmp[i];
+        uint8_t acc = val;
+
+        for (int j = 0; j < MASKING_N - 1; ++j) {
+            output->bytes[i].share[j] = get_random8();  // Independent randomness
+            acc -= output->bytes[i].share[j];
+        }
+
+        output->bytes[i].share[MASKING_N - 1] = acc;
+    }
+}
+
+
+void masked_sha3_224_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len) {
+    masked_keccak_sponge_arithmetic(output, 28, input, input_len, 1152 / 8, DOMAIN_SHA3);
+}
+
+void masked_sha3_256_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len) {
+    masked_keccak_sponge_arithmetic(output, 32, input, input_len, 136, DOMAIN_SHA3);
+}
+
+void masked_sha3_384_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len) {
+    masked_keccak_sponge_arithmetic(output, 48, input, input_len, 832 / 8, DOMAIN_SHA3);
+}
+
+void masked_sha3_512_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len) {
+    masked_keccak_sponge_arithmetic(output, 64, input, input_len, 72, DOMAIN_SHA3);
+}
+
+void masked_shake128_arithmetic(uint8_t *output, size_t output_len, const uint8_t *input, size_t input_len) {
+    masked_keccak_sponge_arithmetic(output, output_len, input, input_len, 168, DOMAIN_SHAKE);
+}
+
+void masked_shake256_arithmetic(uint8_t *output, size_t output_len, const uint8_t *input, size_t input_len) {
+    masked_keccak_sponge_arithmetic(output, output_len, input, input_len, 136, DOMAIN_SHAKE);
+}
+
+void masked_shake128_absorb_once_arithmetic(masked_keccak_state *ctx, const uint8_t *input, size_t input_len) {
+    ctx->rate = 168;
+    masked_absorb_arithmetic(ctx->state, input, input_len, ctx->rate);
+}
+
+void masked_shake256_absorb_once_arithmetic(masked_keccak_state *ctx, const uint8_t *input, size_t input_len) {
+    ctx->rate = 136;
+    masked_absorb_arithmetic(ctx->state, input, input_len, ctx->rate);
+}
+
+void masked_shake128_sponge_arithmetic(uint8_t *output, size_t outlen, const uint8_t *input, size_t inlen) {
+    masked_keccak_sponge_arithmetic(output, outlen, input, inlen, SHAKE128_RATE, DOMAIN_SHAKE);
+}
+
+void masked_shake256_sponge_arithmetic(uint8_t *output, size_t outlen, const uint8_t *input, size_t inlen) {
+    masked_keccak_sponge_arithmetic(output, outlen, input, inlen, SHAKE256_RATE, DOMAIN_SHAKE);
+}
+

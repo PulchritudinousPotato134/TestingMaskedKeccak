@@ -469,7 +469,7 @@ void masked_chi(masked_uint64_t out[5][5],
             masked_uint64_t t1, t2;
 
             masked_not(&t1, b);
-            masked_and(&t2, &t1, c, r[x][y]);
+            masked_and_arithmetic(&t2, &t1, c, r[x][y]);
             masked_xor(&out[x][y], a, &t2);
         }
     }
@@ -575,3 +575,131 @@ void masked_keccak_f1600(masked_uint64_t state[5][5]) {
         masked_keccak_round(state, RC[i]);
     }
 }
+
+
+// ~~~ ARITHMETIC IMPLEMENTATION ~~~
+
+void masked_theta_arithmetic(masked_uint64_t state[5][5]) {
+    masked_uint64_t C[5] = {0};
+    masked_uint64_t D[5] = {0};
+
+    for (int x = 0; x < 5; x++) {
+        C[x] = state[x][0];
+        for (int y = 1; y < 5; y++) {
+            masked_add_arithmetic(&C[x], &C[x], &state[x][y]);
+        }
+    }
+
+    for (int x = 0; x < 5; x++) {
+        for (int i = 0; i < MASKING_N; i++) {
+            uint64_t c_plus_1 = C[(x + 1) % 5].share[i];
+            uint64_t rot = (c_plus_1 << 1) | (c_plus_1 >> 63);
+            D[x].share[i] = C[(x + 4) % 5].share[i] + rot; // additive domain
+        }
+    }
+
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            masked_add_arithmetic(&state[x][y], &state[x][y], &D[x]);
+        }
+    }
+}
+
+void masked_rho_arithmetic(masked_uint64_t state[5][5]) {
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            uint8_t r = keccak_rho_offsets[x][y];
+            for (int i = 0; i < MASKING_N; i++) {
+                state[x][y].share[i] = ROL64(state[x][y].share[i], r);
+            }
+        }
+    }
+}
+
+void masked_pi_arithmetic(masked_uint64_t state[5][5]) {
+    masked_uint64_t tmp[5][5];
+    for (int x = 0; x < 5; ++x)
+        for (int y = 0; y < 5; ++y)
+            tmp[x][y] = state[x][y];
+
+    for (int x = 0; x < 5; ++x)
+        for (int y = 0; y < 5; ++y) {
+            int new_x = y;
+            int new_y = (2 * x + 3 * y) % 5;
+            state[new_x][new_y] = tmp[x][y];
+        }
+}
+
+void masked_chi_arithmetic(masked_uint64_t out[5][5], const masked_uint64_t in[5][5],
+                           const uint64_t r[5][5][MASKING_N][MASKING_N]) {
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < 5; x++) {
+            const masked_uint64_t *a = &in[x][y];
+            const masked_uint64_t *b = &in[(x + 1) % 5][y];
+            const masked_uint64_t *c = &in[(x + 2) % 5][y];
+            masked_uint64_t t1, t2;
+
+            masked_neg_arithmetic(&t1, b);
+            masked_mul_arithmetic(&t2, &t1, c, r[x][y]);
+            masked_add_arithmetic(&out[x][y], a, &t2);
+        }
+    }
+}
+
+void masked_iota_arithmetic(masked_uint64_t state[5][5], uint64_t rc) {
+    uint64_t value = 0;
+    for (int i = 0; i < MASKING_N; ++i)
+        value += state[0][0].share[i];
+    value += rc;
+
+    uint64_t acc = value;
+    for (int i = 1; i < MASKING_N; ++i) {
+        state[0][0].share[i] = get_random64();
+        acc -= state[0][0].share[i];
+    }
+    state[0][0].share[0] = acc;
+}
+
+void masked_keccak_round_arithmetic(masked_uint64_t state[5][5], uint64_t rc) {
+    masked_theta_arithmetic(state);
+    masked_rho_arithmetic(state);
+    masked_pi_arithmetic(state);
+
+    uint64_t r_chi[5][5][MASKING_N][MASKING_N];
+    for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x)
+            fill_random_matrix(r_chi[x][y]);
+
+    masked_uint64_t chi_out[5][5];
+    masked_chi_arithmetic(chi_out, state, r_chi);
+    masked_iota_arithmetic(chi_out, rc);
+
+    for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x)
+            state[x][y] = chi_out[x][y];
+}
+
+void masked_keccak_f1600_arithmetic(masked_uint64_t state[5][5]) {
+    for (int i = 0; i < 24; i++) {
+        masked_keccak_round_arithmetic(state, RC[i]);
+    }
+}
+
+
+void masked_absorb_arithmetic(masked_uint64_t state[5][5], const uint8_t *input, size_t input_len, size_t rate) {
+    // TODO: Implement arithmetic-masked absorption phase
+}
+
+void masked_squeeze_arithmetic(uint8_t *output, size_t output_len, masked_uint64_t state[5][5], size_t rate) {
+    // TODO: Implement arithmetic-masked squeezing phase
+}
+
+
+void print_recombined_state_arithmetic(masked_uint64_t state[5][5], const char *label) {
+    // TODO: Print recombined arithmetic-masked state
+}
+
+void masked_value_set_arithmetic(masked_uint64_t *out, uint64_t value) {
+    // TODO: Set arithmetic-masked value
+}
+

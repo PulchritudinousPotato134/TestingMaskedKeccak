@@ -20,5 +20,23 @@ void masked_and(masked_uint64_t *out,
 
 void masked_not(masked_uint64_t *dst, const masked_uint64_t *src) ;
 
+
+// === Arithmetic Masking Gadgets ===
+void masked_add_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a,
+                const masked_uint64_t *b);
+
+void masked_sub_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a,
+                const masked_uint64_t *b);
+
+void masked_mul_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a,
+                const masked_uint64_t *b,
+                const uint64_t r[MASKING_N][MASKING_N]);
+
+void masked_neg_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a);
+
 #endif
 

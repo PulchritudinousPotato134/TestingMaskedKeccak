@@ -10,3 +10,15 @@
 ../Core/Src/sha_shake.c:135:6:masked_shake256_absorb_once	24	static
 ../Core/Src/sha_shake.c:140:6:masked_shake128_sponge	32	static
 ../Core/Src/sha_shake.c:144:6:masked_shake256_sponge	32	static
+../Core/Src/sha_shake.c:150:6:masked_keccak_sponge_arithmetic	1008	dynamic
+../Core/Src/sha_shake.c:209:6:masked_sha3_256_remain_masked_arithmetic	880	static
+../Core/Src/sha_shake.c:234:6:masked_sha3_224_arithmetic	32	static
+../Core/Src/sha_shake.c:238:6:masked_sha3_256_arithmetic	32	static
+../Core/Src/sha_shake.c:242:6:masked_sha3_384_arithmetic	32	static
+../Core/Src/sha_shake.c:246:6:masked_sha3_512_arithmetic	32	static
+../Core/Src/sha_shake.c:250:6:masked_shake128_arithmetic	32	static
+../Core/Src/sha_shake.c:254:6:masked_shake256_arithmetic	32	static
+../Core/Src/sha_shake.c:258:6:masked_shake128_absorb_once_arithmetic	24	static
+../Core/Src/sha_shake.c:263:6:masked_shake256_absorb_once_arithmetic	24	static
+../Core/Src/sha_shake.c:268:6:masked_shake128_sponge_arithmetic	32	static
+../Core/Src/sha_shake.c:272:6:masked_shake256_sponge_arithmetic	32	static

@@ -126,12 +126,39 @@ void fill_masked_state(masked_uint64_t dst[5][5], const uint64_t ref[25]) {
     }
 }
 
+void fill_masked_state_arithmetic(masked_uint64_t dst[5][5], const uint64_t src[25]) {
+    for (int y = 0; y < 5; ++y) {
+        for (int x = 0; x < 5; ++x) {
+            uint64_t acc = src[y * 5 + x];
+
+            // Generate MASKING_N - 1 random shares
+            for (int i = 0; i < MASKING_N - 1; ++i) {
+                dst[x][y].share[i] = get_random64();
+                acc -= dst[x][y].share[i];
+            }
+
+            // Last share ensures additive sum equals original value
+            dst[x][y].share[MASKING_N - 1] = acc;
+        }
+    }
+}
+
 void recombine_masked_state(uint64_t dst[25], const masked_uint64_t src[5][5]) {
     for (int y = 0; y < 5; ++y)
         for (int x = 0; x < 5; ++x) {
             uint64_t val = 0;
             for (int i = 0; i < MASKING_N; ++i)
                 val ^= src[x][y].share[i];
+            dst[y * 5 + x] = val;
+        }
+}
+
+void recombine_masked_state_arithmetic(uint64_t dst[25], const masked_uint64_t src[5][5]) {
+    for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x) {
+            uint64_t val = 0;
+            for (int i = 0; i < MASKING_N; ++i)
+                val += src[x][y].share[i];  // arithmetic recombination
             dst[y * 5 + x] = val;
         }
 }
@@ -217,6 +244,64 @@ void test_masked_vs_reference_step_by_step(void) {
 
 
 }
+
+void test_masked_vs_reference_step_by_step_arithmetic(void) {
+    // === 1. Initial state setup ===
+    uint64_t ref_state[25];
+    for (int i = 0; i < 25; i++)
+        ref_state[i] = i * 0x0F0F0F0F0F0F0F0FULL;
+
+    masked_uint64_t masked_state[5][5];
+    fill_masked_state_arithmetic(masked_state, ref_state);
+
+    uint64_t tmp_ref[25], tmp_masked[25];
+
+    // === 2. THETA ===
+    memcpy(tmp_ref, ref_state, sizeof(ref_state));
+    theta(tmp_ref);
+
+    masked_theta_arithmetic(masked_state);
+    recombine_masked_state_arithmetic(tmp_masked, masked_state);
+    print_diff("THETA-ARITH", tmp_ref, tmp_masked);
+
+    // === 3. RHO ===
+    memcpy(tmp_ref, tmp_masked, sizeof(tmp_masked));
+    rho(tmp_ref);
+
+    masked_rho_arithmetic(masked_state);
+    recombine_masked_state_arithmetic(tmp_masked, masked_state);
+    print_diff("RHO-ARITH", tmp_ref, tmp_masked);
+
+    // === 4. PI ===
+    memcpy(tmp_ref, tmp_masked, sizeof(tmp_masked));
+    pi(tmp_ref);
+
+    masked_pi_arithmetic(masked_state);
+    recombine_masked_state_arithmetic(tmp_masked, masked_state);
+    print_diff("PI-ARITH", tmp_ref, tmp_masked);
+
+    int round_idx = 0;
+
+    // === 5. CHI ===
+    memcpy(tmp_ref, tmp_masked, sizeof(tmp_masked));
+    chi(tmp_ref);
+
+    uint64_t r_chi[5][5][MASKING_N][MASKING_N];
+    for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x)
+            fill_random_matrix(r_chi[x][y]);
+
+    masked_uint64_t chi_out[5][5];
+    masked_chi_arithmetic(chi_out, masked_state, r_chi);
+
+    // === 6. IOTA ===
+    iota(tmp_ref, round_idx);
+    masked_iota_arithmetic(chi_out, RC[round_idx]);
+
+    recombine_masked_state_arithmetic(tmp_masked, chi_out);
+    print_diff("IOTA-ARITH", tmp_ref, tmp_masked);
+}
+
 static void masked_round(masked_uint64_t S[5][5],
                          int r,
                          uint64_t Rchi[5][5][MASKING_N][MASKING_N])
@@ -291,6 +376,32 @@ void test_full_keccak_rounds(void)
     }
 
     printf("✓ all 24 masked rounds match reference Keccak-F[1600]\n");
+}
+void test_masked_keccak_round_arithmetic_vs_reference(void) {
+    // === 1. Setup known input ===
+    uint64_t ref_state[25];
+    for (int i = 0; i < 25; i++)
+        ref_state[i] = i * 0x0101010101010101ULL;
+
+    masked_uint64_t masked_state[5][5];
+    fill_masked_state_arithmetic(masked_state, ref_state);
+
+    uint64_t tmp_ref[25], tmp_masked[25];
+
+    // === 2. Apply reference round ===
+    memcpy(tmp_ref, ref_state, sizeof(ref_state));
+    theta(tmp_ref);
+    rho(tmp_ref);
+    pi(tmp_ref);
+    chi(tmp_ref);
+    iota(tmp_ref, 0);
+
+    // === 3. Apply masked round (additive domain) ===
+    masked_keccak_round_arithmetic(masked_state, RC[0]);
+    recombine_masked_state_arithmetic(tmp_masked, masked_state);
+
+    // === 4. Compare ===
+    print_diff("Keccak-Round-Arithmetic", tmp_ref, tmp_masked);
 }
 
 void test_masked_keccak_round_vs_reference(void) {
@@ -417,12 +528,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  test_masked_vs_reference_step_by_step_arithmetic();
+	  /*
 	  test_masked_vs_reference_step_by_step();
 	  test_full_keccak_rounds();
 	  test_masked_keccak_round_vs_reference();
 	    test_masked_vs_reference_sha3_256();
 	    test_masked_vs_reference_sha3_512();
 	    test_kat_sha3_all();
+	    */
+
 	  /*}
 	  const uint8_t input[] = "MaskedKeccakTest";
 	     uint8_t unmasked_output[64];

@@ -74,6 +74,56 @@ void masked_shake128(uint8_t *output, size_t output_len,
 void masked_shake256(uint8_t *output, size_t output_len,
                      const uint8_t *input, size_t input_len);
 
+
+// ~~~ ARITHMETIC VERSIONS ~~~
+void masked_keccak_sponge_arithmetic(uint8_t *output, size_t output_len,
+                          const uint8_t *input, size_t input_len,
+                          size_t rate, uint8_t domain_sep);
+/**
+ * Computes SHA3-224 (28 bytes output) using masked Keccak.
+ * @param output Buffer to receive 28-byte hash.
+ * @param input Message to hash.
+ * @param input_len Length of input in bytes.
+ */
+void masked_sha3_224_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len);
+
+/**
+ * Computes SHA3-256 (32 bytes output) using masked Keccak.
+ */
+void masked_sha3_256_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len);
+
+/**
+ * Computes SHA3-256 (32 bytes output) using masked Keccak but remains hashed for Kyber usage.
+ */
+void masked_sha3_256_remain_masked_arithmetic(masked_u8_32 *output, const uint8_t *input, size_t input_len);
+/**
+ * Computes SHA3-384 (48 bytes output) using masked Keccak.
+ */
+void masked_sha3_384_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len);
+
+/**
+ * Computes SHA3-512 (64 bytes output) using masked Keccak.
+ */
+void masked_sha3_512_arithmetic(uint8_t *output, const uint8_t *input, size_t input_len);
+
+// --- Extendable Output Functions (XOFs) ---
+
+/**
+ * Computes SHAKE128 (XOF), which produces arbitrary-length output.
+ * @param output Buffer to receive output.
+ * @param output_len Number of bytes of output desired.
+ * @param input Message to process.
+ * @param input_len Length of input in bytes.
+ */
+void masked_shake128_arithmetic(uint8_t *output, size_t output_len,
+                     const uint8_t *input, size_t input_len);
+
+/**
+ * Computes SHAKE256 (XOF), which produces arbitrary-length output.
+ */
+void masked_shake256_arithmetic(uint8_t *output, size_t output_len,
+                     const uint8_t *input, size_t input_len);
+
 #ifdef __cplusplus
 }
 #endif

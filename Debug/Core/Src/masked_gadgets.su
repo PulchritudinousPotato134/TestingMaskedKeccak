@@ -2,3 +2,7 @@
 ../Core/Src/masked_gadgets.c:23:6:masked_xor	40	static
 ../Core/Src/masked_gadgets.c:31:6:masked_and	104	static
 ../Core/Src/masked_gadgets.c:54:6:masked_not	104	static
+../Core/Src/masked_gadgets.c:72:6:masked_add_arithmetic	40	static
+../Core/Src/masked_gadgets.c:80:6:masked_sub_arithmetic	40	static
+../Core/Src/masked_gadgets.c:88:6:masked_mul_arithmetic	112	static
+../Core/Src/masked_gadgets.c:107:6:masked_neg_arithmetic	32	static

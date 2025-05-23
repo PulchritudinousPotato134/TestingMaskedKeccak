@@ -14,3 +14,14 @@
 ../Core/Src/masked_keccak.c:512:6:print_recombined_state	64	static
 ../Core/Src/masked_keccak.c:527:6:masked_keccak_round	4048	static
 ../Core/Src/masked_keccak.c:573:6:masked_keccak_f1600	24	static
+../Core/Src/masked_keccak.c:582:6:masked_theta_arithmetic	400	static
+../Core/Src/masked_keccak.c:608:6:masked_rho_arithmetic	64	static
+../Core/Src/masked_keccak.c:619:6:masked_pi_arithmetic	848	static
+../Core/Src/masked_keccak.c:633:6:masked_chi_arithmetic	112	static
+../Core/Src/masked_keccak.c:649:6:masked_iota_arithmetic	80	static
+../Core/Src/masked_keccak.c:663:6:masked_keccak_round_arithmetic	4048	static
+../Core/Src/masked_keccak.c:682:6:masked_keccak_f1600_arithmetic	24	static
+../Core/Src/masked_keccak.c:689:6:masked_absorb_arithmetic	24	static
+../Core/Src/masked_keccak.c:693:6:masked_squeeze_arithmetic	24	static
+../Core/Src/masked_keccak.c:698:6:print_recombined_state_arithmetic	16	static
+../Core/Src/masked_keccak.c:702:6:masked_value_set_arithmetic	24	static

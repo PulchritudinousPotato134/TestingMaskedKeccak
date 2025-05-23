@@ -66,6 +66,50 @@ void masked_not(masked_uint64_t *dst, const masked_uint64_t *src) {
     dst->share[0] ^= delta;
 }
 
+// ~~~ARITHMETIC IMPLEMENTATIONS ~~~
+
+
+void masked_add_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a,
+                const masked_uint64_t *b) {
+    for (size_t i = 0; i < MASKING_N; i++) {
+        out->share[i] = a->share[i] + b->share[i];
+    }
+}
+
+void masked_sub_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a,
+                const masked_uint64_t *b) {
+    for (size_t i = 0; i < MASKING_N; i++) {
+        out->share[i] = a->share[i] - b->share[i];
+    }
+}
+
+void masked_mul_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a,
+                const masked_uint64_t *b,
+                const uint64_t r[MASKING_N][MASKING_N]) {
+    // Step 1: Diagonal products
+    for (size_t i = 0; i < MASKING_N; i++) {
+        out->share[i] = a->share[i] * b->share[i];
+    }
+
+    // Step 2: Cross-terms + randomness (ISW-style)
+    for (size_t i = 0; i < MASKING_N; i++) {
+        for (size_t j = i + 1; j < MASKING_N; j++) {
+            uint64_t t = a->share[i] * b->share[j] + a->share[j] * b->share[i];
+            out->share[i] += r[i][j];
+            out->share[j] += t - r[i][j];
+        }
+    }
+}
+
+void masked_neg_arithmetic(masked_uint64_t *out,
+                const masked_uint64_t *a) {
+    for (size_t i = 0; i < MASKING_N; i++) {
+        out->share[i] = -a->share[i];
+    }
+}
 
 
 
