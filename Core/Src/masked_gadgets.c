@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "masked_gadgets.h"
-
+#include "global_rng.h"
 
 void fill_random_matrix(uint64_t r[MASKING_N][MASKING_N]) {
     for (size_t i = 0; i < MASKING_N; i++) {

@@ -1,0 +1,4 @@
+../Core/Src/masked_gadgets.c:10:6:fill_random_matrix	32	static
+../Core/Src/masked_gadgets.c:23:6:masked_xor	40	static
+../Core/Src/masked_gadgets.c:31:6:masked_and	104	static
+../Core/Src/masked_gadgets.c:54:6:masked_not	104	static

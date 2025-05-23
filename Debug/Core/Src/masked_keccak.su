@@ -1,0 +1,16 @@
+../Core/Src/masked_keccak.c:103:6:masked_value_set	72	static
+../Core/Src/masked_keccak.c:140:6:masked_shake128_squeezeblocks	80	static
+../Core/Src/masked_keccak.c:162:13:store64	40	static
+../Core/Src/masked_keccak.c:169:6:unmasked_shake128_squeezeblocks	32	static
+../Core/Src/masked_keccak.c:197:6:masked_absorb	360	static
+../Core/Src/masked_keccak.c:272:17:load64	48	static
+../Core/Src/masked_keccak.c:283:6:unmasked_absorb	96	static
+../Core/Src/masked_keccak.c:316:6:masked_squeeze	80	static
+../Core/Src/masked_keccak.c:354:6:masked_theta	416	static
+../Core/Src/masked_keccak.c:394:6:masked_rho	136	static
+../Core/Src/masked_keccak.c:437:6:masked_pi	848	static
+../Core/Src/masked_keccak.c:457:6:masked_chi	112	static
+../Core/Src/masked_keccak.c:488:6:masked_iota	80	static
+../Core/Src/masked_keccak.c:512:6:print_recombined_state	64	static
+../Core/Src/masked_keccak.c:527:6:masked_keccak_round	4048	static
+../Core/Src/masked_keccak.c:573:6:masked_keccak_f1600	24	static

@@ -30,6 +30,7 @@ extern const uint64_t RC[24];
 #include "keccak.h"
 #include "sha_shake.h"
 #include "test.h"
+#include "global_rng.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

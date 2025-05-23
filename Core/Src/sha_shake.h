@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "masked_types.h"
+#include "structs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,6 +42,10 @@ void masked_sha3_224(uint8_t *output, const uint8_t *input, size_t input_len);
  */
 void masked_sha3_256(uint8_t *output, const uint8_t *input, size_t input_len);
 
+/**
+ * Computes SHA3-256 (32 bytes output) using masked Keccak but remains hashed for Kyber usage.
+ */
+void masked_sha3_256_remain_masked(masked_u8_32 *output, const uint8_t *input, size_t input_len);
 /**
  * Computes SHA3-384 (48 bytes output) using masked Keccak.
  */

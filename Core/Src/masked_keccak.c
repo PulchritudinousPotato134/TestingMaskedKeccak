@@ -1,8 +1,10 @@
-#include "masked_types.h"
 #include "masked_gadgets.h"
 #include "stm32f4xx_hal.h"
 #include "debug_log.h"
 #include "params.h"
+#include "global_rng.h"
+#include "unmasked_keccak.h"
+
 /*
  * Keccak-F[1600] — Masked Round Transformations Summary
 
@@ -34,6 +36,14 @@ extern RNG_HandleTypeDef hrng;
 
 //======Helper Methods======
 
+/**
+ * Fast rotate-left operation on 64-bit values.
+ *
+ * Used in Keccak's Rho step to shift each lane by a fixed offset.
+ * Compiles down to a single `ROR` or `LSL/LSR` pair when `n` is constant.
+ */
+#define ROL64(x, n) (((x) << (n)) | ((x) >> (64 - (n))))
+
 //64-bit constants used in the Iota step to inject round-dependent asymmetry
 //Without Iota, Keccak's permutation would be invariant under global XOR shifts
 const uint64_t RC[24] = {
@@ -51,13 +61,6 @@ const uint64_t RC[24] = {
     0x0000000080000001ULL, 0x8000000080008008ULL
 };
 
-uint64_t get_random64(void) {
-    uint32_t r1, r2;
-    HAL_RNG_GenerateRandomNumber(&hrng, &r1);
-    HAL_RNG_GenerateRandomNumber(&hrng, &r2);
-    return ((uint64_t)r1 << 32) | r2;
-}
-
 
 
 //Each value is a rotation offset used in the Rho step
@@ -73,31 +76,124 @@ static const uint8_t keccak_rho_offsets[5][5] = {
 
 //Performs a circular left shift (rotate-left) of a 64-bit word by n bits.
 static inline uint64_t rol64(uint64_t x, unsigned int n) {
-    n %= 64;
-    return (x << n) | (x >> ((64 - n) % 64));
+	n &= 63;
+	return (x << n) | (x >> (64 - n));
+
 }
 
+#if MASKING_ORDER == 0
+void masked_value_set(masked_uint64_t *out, uint64_t value) {
+    out->share[0] = value;
+}
+#elif MASKING_ORDER == 1
+void masked_value_set(masked_uint64_t *out, uint64_t value) {
+    uint64_t r0 = get_random64();
+    out->share[0] = r0;
+    out->share[1] = value ^ r0;
+}
+#elif MASKING_ORDER == 2
+void masked_value_set(masked_uint64_t *out, uint64_t value) {
+    uint64_t r0 = get_random64();
+    uint64_t r1 = get_random64();
+    out->share[0] = r0;
+    out->share[1] = r1;
+    out->share[2] = value ^ r0 ^ r1;
+}
+#elif MASKING_ORDER == 3
+void masked_value_set(masked_uint64_t *out, uint64_t value) {
+    uint64_t r0 = get_random64();
+    uint64_t r1 = get_random64();
+    uint64_t r2 = get_random64();
+    out->share[0] = r0;
+    out->share[1] = r1;
+    out->share[2] = r2;
+    out->share[3] = value ^ r0 ^ r1 ^ r2;
+}
+#elif MASKING_ORDER == 4
+void masked_value_set(masked_uint64_t *out, uint64_t value) {
+    uint64_t r0 = get_random64();
+    uint64_t r1 = get_random64();
+    uint64_t r2 = get_random64();
+    uint64_t r3 = get_random64();
+    out->share[0] = r0;
+    out->share[1] = r1;
+    out->share[2] = r2;
+    out->share[3] = r3;
+    out->share[4] = value ^ r0 ^ r1 ^ r2 ^ r3;
+}
+#else
 void masked_value_set(masked_uint64_t *out, uint64_t value) {
     uint64_t acc = value;
 
-
+    // Generate MASKING_N - 1 random shares
     for (int i = 0; i < MASKING_N - 1; i++) {
-        uint32_t lo = 0, hi = 0;
-        	HAL_StatusTypeDef status1 = HAL_RNG_GenerateRandomNumber(&hrng, &lo);
-           HAL_StatusTypeDef status2 = HAL_RNG_GenerateRandomNumber(&hrng, &hi);
-
-        out->share[i] = ((uint64_t)hi << 32) | lo;
+        out->share[i] = get_random64();
         acc ^= out->share[i];
     }
 
+    // Last share ensures that XOR of all shares == value
     out->share[MASKING_N - 1] = acc;
 }
+#endif
+
+
+void masked_shake128_squeezeblocks(uint8_t *output, size_t nblocks,
+                                   masked_keccak_state *ctx) {
+
+    for (size_t block = 0; block < nblocks; block++) {
+        // Extract full `rate` bytes from current state
+        for (size_t i = 0; i < ctx->rate; i++) {
+            size_t x = (i / 8) % 5;
+            size_t y = (i / 8) / 5;
+            size_t byte_pos = i % 8;
+
+            uint64_t lane = 0;
+            for (int j = 0; j < MASKING_N; j++) {
+                lane ^= ctx->state[x][y].share[j];
+            }
+
+            output[block * ctx->rate + i] = (lane >> (8 * byte_pos)) & 0xFF;
+        }
+
+        // Permute to prepare next block
+        masked_keccak_f1600(ctx->state);
+    }
+}
+static void store64(uint8_t x[8], uint64_t u) {
+  unsigned int i;
+
+  for(i=0;i<8;i++)
+    x[i] = u >> 8*i;
+}
+
+void unmasked_shake128_squeezeblocks(uint8_t *out, size_t nblocks, keccak_state *state) {
+    while (nblocks) {
+    	KeccakF1600_StatePermute(state->s);
+        for (int i = 0; i < SHAKE128_RATE / 8; ++i) {
+            store64(out + 8 * i, state->s[i]);
+        }
+        out += SHAKE128_RATE;
+        nblocks--;
+    }
+}
+
+
 
 //======Sponge Phases======
 
-// Absorbs input bytes into a masked Keccak state.
-// This is the first phase of the sponge construction.
-// Each block of input is XORed into the state, followed by a permutation.
+/**
+ * Each block of input is XORed into the state, followed by a permutation.
+ * Absorbs input bytes into a masked Keccak state.
+ *
+  *This is the first phase of the sponge construction.
+ * Splits the input into rate-sized blocks and XORs them into the state.
+ * Final block is padded using the Keccak domain-specific padding rule.
+ *
+ * @param state      5x5 masked state array to update
+ * @param input      Pointer to message bytes
+ * @param input_len  Length of the message in bytes
+ * @param rate       Sponge bitrate in bytes (e.g. 136 for SHA3-256)
+ */
 void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t input_len, size_t rate) {
     // === Initialize state to zero ===
     for (int x = 0; x < 5; x++) {
@@ -143,7 +239,10 @@ void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t inp
 
     // Prepare a zeroed block and copy in remaining input
     uint8_t block[KECCAK_RATE] = {0};
-    memcpy(block, input + offset, input_len);
+    for (size_t i = 0; i < input_len; ++i) {
+        block[i] = input[offset + i];
+    }
+
 
     // Apply padding: 0x06 marks domain separation, 0x80 sets the final bit
     block[input_len] ^= 0x06;
@@ -170,9 +269,50 @@ void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t inp
     masked_keccak_f1600(state);
 }
 
+static uint64_t load64(const uint8_t x[8]) {
+  unsigned int i;
+  uint64_t r = 0;
 
-// Squeezes output bytes from a masked Keccak state.
-// This is the final phase in sponge-based hashing or XOF like SHAKE.
+  for(i=0;i<8;i++)
+    r |= (uint64_t)x[i] << 8*i;
+
+  return r;
+}
+
+
+void unmasked_absorb(keccak_state *state, const uint8_t *in, size_t inlen, size_t rate ) {
+	  unsigned int i;
+
+	  for (i = 0; i < 25; i++)
+	    state->s[i] = 0;
+
+	  while (inlen >= rate) {
+	    for (i = 0; i < rate / 8; i++)
+	      state->s[i] ^= load64(in + 8 * i);
+	    in += rate;
+	    inlen -= rate;
+	    KeccakF1600_StatePermute(state->s);
+	  }
+
+	  for (i = 0; i < inlen; i++)
+	    state->s[i / 8] ^= (uint64_t)in[i] << 8 * (i % 8);
+
+	  state->s[i / 8] ^= (uint64_t)DOMAIN_SHAKE << 8 * (i % 8);
+	  state->s[(rate - 1) / 8] ^= 1ULL << 63;
+}
+
+/**
+ * Squeezes output bytes from a masked Keccak state.
+ *
+ * This is the final phase in sponge-based hashing or XOF like SHAKE.
+ * Recombines masked lanes to extract real output bytes.
+ * Applies Keccak-f permutations between squeezing rounds if more output is needed.
+ *
+ * @param output      Buffer to receive the output
+ * @param output_len  Number of output bytes desired
+ * @param state       5x5 masked state to squeeze from
+ * @param rate        Sponge bitrate in bytes (e.g. 168 for SHAKE128)
+ */
 void masked_squeeze(uint8_t *output, size_t output_len, masked_uint64_t state[5][5], size_t rate) {
     size_t offset = 0;
 
@@ -205,6 +345,12 @@ void masked_squeeze(uint8_t *output, size_t output_len, masked_uint64_t state[5]
 
 //======Five Main Round Functions======
 
+/**
+ * Apply the masked Theta step of Keccak.
+ *
+ * Theta mixes bits across columns using masked XORs to ensure diffusion.
+ * Maintains share alignment (linear operation).
+ */
 void masked_theta(masked_uint64_t state[5][5]) {
     masked_uint64_t C[5] = {0};  // Column parity
     masked_uint64_t D[5] = {0};  // Parity difference per column
@@ -239,6 +385,12 @@ void masked_theta(masked_uint64_t state[5][5]) {
     }
 }
 
+/**
+ * Apply the masked Rho step of Keccak.
+ *
+ * Rho rotates each lane by a fixed constant offset (same across shares),
+ * spreading bits to neighboring positions while preserving the mask structure.
+ */
 void masked_rho(masked_uint64_t state[5][5]) {
     // Rho rotates each lane by a constant offset to scatter bits.
     // It’s important the same rotation is applied to every share
@@ -246,15 +398,42 @@ void masked_rho(masked_uint64_t state[5][5]) {
     for (int x = 0; x < 5; x++) {
         for (int y = 0; y < 5; y++) {
             uint8_t r = keccak_rho_offsets[x][y];
-            for (int i = 0; i < MASKING_N; i++) {
-                uint64_t value = state[x][y].share[i];
-                state[x][y].share[i] = rol64(value, r);
-            }
+			#if MASKING_N == 1
+						state[x][y].share[0] = ROL64(state[x][y].share[0], r);
+			#elif MASKING_N == 2
+						state[x][y].share[0] = ROL64(state[x][y].share[0], r);
+						state[x][y].share[1] = ROL64(state[x][y].share[1], r);
+			#elif MASKING_N == 3
+						state[x][y].share[0] = ROL64(state[x][y].share[0], r);
+						state[x][y].share[1] = ROL64(state[x][y].share[1], r);
+						state[x][y].share[2] = ROL64(state[x][y].share[2], r);
+			#elif MASKING_N == 4
+						state[x][y].share[0] = ROL64(state[x][y].share[0], r);
+						state[x][y].share[1] = ROL64(state[x][y].share[1], r);
+						state[x][y].share[2] = ROL64(state[x][y].share[2], r);
+						state[x][y].share[3] = ROL64(state[x][y].share[3], r);
+			#elif MASKING_N == 5
+						state[x][y].share[0] = ROL64(state[x][y].share[0], r);
+						state[x][y].share[1] = ROL64(state[x][y].share[1], r);
+						state[x][y].share[2] = ROL64(state[x][y].share[2], r);
+						state[x][y].share[3] = ROL64(state[x][y].share[3], r);
+						state[x][y].share[3] = ROL64(state[x][y].share[4], r);
+			#else
+						for (int i = 0; i < MASKING_N; i++) {
+							state[x][y].share[i] = ROL64(state[x][y].share[i], r);
+						}
+			#endif
         }
     }
 }
 
 
+/**
+ * Apply the masked Pi step of Keccak.
+ *
+ * Pi rearranges lanes within the 5x5 grid using a predefined permutation.
+ * All shares of a lane are moved together to preserve masking validity.
+ */
 void masked_pi(masked_uint64_t state[5][5]) {
     masked_uint64_t tmp[5][5];
 
@@ -297,7 +476,15 @@ void masked_chi(masked_uint64_t out[5][5],
 }
 
 
-
+/**
+ * Apply the masked Iota step of Keccak.
+ *
+ * Injects the round constant into lane (0,0) to break symmetry.
+ * Requires re-masking the result securely to maintain masking invariants.
+ *
+ * @param state Masked state to update
+ * @param rc    Round constant for this permutation round
+ */
 void masked_iota(masked_uint64_t state[5][5], uint64_t rc) {
     // Iota introduces asymmetry by injecting a round constant into lane (0,0).
     // This breaks symmetry and helps distinguish rounds.

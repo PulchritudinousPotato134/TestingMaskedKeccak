@@ -1,0 +1,12 @@
+../Core/Src/sha_shake.c:7:6:masked_keccak_sponge	14
+../Core/Src/sha_shake.c:78:6:masked_sha3_224	1
+../Core/Src/sha_shake.c:83:6:masked_sha3_256	1
+../Core/Src/sha_shake.c:87:6:masked_sha3_256_remain_masked	3
+../Core/Src/sha_shake.c:111:6:masked_sha3_384	1
+../Core/Src/sha_shake.c:116:6:masked_sha3_512	1
+../Core/Src/sha_shake.c:121:6:masked_shake128	1
+../Core/Src/sha_shake.c:126:6:masked_shake256	1
+../Core/Src/sha_shake.c:131:6:masked_shake128_absorb_once	1
+../Core/Src/sha_shake.c:135:6:masked_shake256_absorb_once	1
+../Core/Src/sha_shake.c:140:6:masked_shake128_sponge	1
+../Core/Src/sha_shake.c:144:6:masked_shake256_sponge	1

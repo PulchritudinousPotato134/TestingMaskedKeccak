@@ -4,7 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "masked_types.h"
+#include "structs.h"
 
+
+extern const uint64_t RC[24];
 // === Round Functions ===
 void masked_theta(masked_uint64_t state[5][5]);
 void masked_rho(masked_uint64_t state[5][5]);
@@ -17,6 +20,16 @@ void masked_keccak_round(masked_uint64_t state[5][5], uint64_t rc);
 // === Sponge Construction ===
 void masked_absorb(masked_uint64_t state[5][5], const uint8_t *input, size_t input_len, size_t rate);
 void masked_squeeze(uint8_t *output, size_t output_len, masked_uint64_t state[5][5], size_t rate);
+void unmasked_absorb(keccak_state state, const uint8_t *input, size_t input_len, size_t rate);
+void unmasked_shake128_squeezeblocks(uint8_t *output, size_t nblocks, keccak_state *state);
+
+//=== Stateful Sponge / Block Based Squeeze ===
+
+void masked_shake128_absorb_once(masked_keccak_state *ctx,
+                                 const uint8_t *input, size_t input_len);
+
+void masked_shake128_squeezeblocks(uint8_t *output, size_t nblocks,
+                                   masked_keccak_state *ctx);
 
 // === Permutation Wrapper ===
 void masked_keccak_f1600(masked_uint64_t state[5][5]);

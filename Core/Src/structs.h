@@ -2,27 +2,25 @@
 #define STRUCTS_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include "params.h"
-
+#include "masked_types.h"
 // === Keccak ===
 typedef struct {
-    uint64_t s[25];  // Keccak state
-    uint8_t pos;
+    uint64_t s[25];
+    unsigned int pos;
 } keccak_state;
 
-
 // === Masking Structures ===
-#define MASKING_N (MASKING_ORDER + 1)
 
 typedef struct {
-    int16_t v[MASKING_N];
+    int16_t share[MASKING_N];
 } masked_word16;
 
 
 typedef struct {
     uint8_t share[MASKING_N];
 } masked_u8;
-
 
 
 typedef struct {
@@ -32,12 +30,13 @@ typedef struct {
 typedef struct {
     masked_u8 bytes[64];
 } masked_u8_64;
-typedef struct {
+
 
 typedef struct {
-    masked_u8 bytes[KYBER_SYMBYTES];
-} masked_u8_symbytes;
-
+    masked_uint64_t state[5][5];
+    size_t rate;
+    size_t pos;
+} masked_keccak_state;
 
 
 #endif // STRUCTS_H
