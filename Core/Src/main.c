@@ -480,6 +480,273 @@ void test_masked_vs_reference_sha3_512(void) {
     printf("PASS: SHA3-512 masked output matches reference\n");
 }
 
+
+
+void boolean_mask(uint64_t out[MASKING_N], uint64_t value) {
+    uint64_t tmp = value;
+    for (int i = 0; i < MASKING_N - 1; i++) {
+        out[i] = get_random64();  // MUST produce unique value each time
+        tmp ^= out[i];
+    }
+    out[MASKING_N - 1] = tmp;  // Final share fixes the XOR
+}
+
+void refresh_xor_partial(uint64_t *shares, size_t n) {
+    uint64_t acc = 0;
+    for (size_t i = 0; i < n - 1; i++) {
+        uint64_t r = get_random64();
+        shares[i] ^= r;
+        acc ^= r;
+    }
+    shares[n - 1] ^= acc;
+}
+
+
+void refresh_xor(uint64_t shares[MASKING_N]) {
+    uint64_t before = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        before ^= shares[i];
+    }
+
+    uint64_t acc = 0;
+    for (int i = 0; i < MASKING_N - 1; i++) {
+        uint64_t r = get_random64();
+        shares[i] ^= r;
+        acc ^= r;
+    }
+    shares[MASKING_N - 1] ^= acc;
+
+    uint64_t after = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        after ^= shares[i];
+    }
+
+    if (before != after) {
+        // Print and hard fail
+        printf("!!! refresh_xor broke the XOR !!!\n");
+        printf("Before: %lu, After: %lu\n", (uint32_t)before, (uint32_t)after);
+        for (int i = 0; i < MASKING_N; i++) {
+            printf("shares[%d] = %lu\n", i, (uint32_t)shares[i]);
+        }
+        while (1);
+    }
+}
+
+
+
+void test_refresh_xor(uint64_t x) {
+    uint64_t shares[MASKING_N];
+    boolean_mask(shares, x);
+
+    printf("Before refresh:\n");
+    for (int i = 0; i < MASKING_N; i++) printf("  [%d] = %lu\n", i, shares[i]);
+
+    refresh_xor(shares);
+
+    uint64_t recovered = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        recovered ^= shares[i];
+    }
+
+    printf("After refresh:\n");
+    for (int i = 0; i < MASKING_N; i++) printf("  [%d] = %lu\n", i, shares[i]);
+
+    printf("Recovered after refresh: 0x%08lx%08lx\n",
+           (uint32_t)(recovered >> 32),
+           (uint32_t)(recovered & 0xFFFFFFFF));
+
+}
+void SecAddModp(uint64_t out[MASKING_N],
+                const uint64_t a[MASKING_N],
+                const uint64_t b[MASKING_N],
+                uint64_t q) {
+    if (q == 0) {
+        while (1) {}  // hard fault: invalid modulus
+    }
+
+    uint64_t x = 0, y_val = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        x ^= a[i];
+        y_val ^= b[i];
+    }
+
+    uint64_t result = (x + y_val) % q;
+    boolean_mask(out, result);
+}
+
+
+
+void test_sec_add_modp(uint64_t x, uint64_t y, uint64_t q) {
+    uint64_t a[MASKING_N], b[MASKING_N], result[MASKING_N];
+
+    boolean_mask(a, x);
+    boolean_mask(b, y);
+
+    SecAddModp(result, a, b, q);
+
+    uint64_t recovered = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        recovered ^= result[i];
+    }
+
+    printf("x = %lu, y = %lu, (x+y mod %lu) = %lu\n",
+           (uint32_t)x, (uint32_t)y, (uint32_t)q, (uint32_t)recovered);
+
+}
+
+void test_boolean_mask(uint64_t x) {
+    uint64_t shares[MASKING_N];
+    boolean_mask(shares, x);
+
+    uint64_t recovered = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        recovered ^= shares[i];
+    }
+
+    printf("Original: %lu, Recovered: %lu\n", x, recovered);
+}
+
+void SecA2Bq_debug(uint64_t *out, const uint64_t *in, size_t n, uint64_t q) {
+    if (n == 1) {
+        out[0] = in[0] % q;
+        for (size_t i = 1; i < MASKING_N; i++) out[i] = 0;
+        return;
+    }
+
+    size_t half = n / 2;
+
+    uint64_t y[MASKING_N] = {0};
+    uint64_t z[MASKING_N] = {0};
+
+    SecA2Bq_debug(y, in, half, q);
+    SecA2Bq_debug(z, in + half, n - half, q);
+
+    refresh_xor_partial(y, half);
+    refresh_xor_partial(z, n - half);
+
+
+    SecAddModp(out, y, z, q);
+}
+
+
+
+
+void test_SecA2Bq(uint64_t x, uint64_t q) {
+    masked_uint64_t A = {0};
+    uint64_t result[MASKING_N] = {0};
+
+    // Create arithmetic sharing of x mod q
+    uint64_t sum = 0;
+    for (int i = 0; i < MASKING_N - 1; i++) {
+        A.share[i] = get_random64() % q;
+        sum = (sum + A.share[i]) % q;
+    }
+    A.share[MASKING_N - 1] = (x + q - sum) % q;
+
+    // ✅ Call SecA2Bq_debug with correct arguments
+    SecA2Bq_debug(result, A.share, MASKING_N, q);
+
+    // Recombine Boolean result
+    uint64_t recombined = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        recombined ^= result[i];
+    }
+
+    // Check result
+    if (recombined != (x % q)) {
+        printf("FAIL: A2B x = %lu, recovered = %lu\n", (uint32_t)x, (uint32_t)recombined);
+        while (1);
+    } else {
+        printf("PASS: A2B x = %lu\n", (uint32_t)x);
+    }
+}
+
+void SecB2Aq(uint64_t *out, const uint64_t *in, size_t n, uint64_t q) {
+    // Recombine Boolean value
+    uint64_t x = in[0];
+    for (size_t i = 1; i < n; i++) {
+        x ^= in[i];  // Full 64-bit XOR
+    }
+
+    x = x % q;  // Properly reduce into F_q
+
+    // Generate additive shares of x in F_q
+    uint64_t sum = 0;
+    for (size_t i = 0; i < n - 1; i++) {
+        out[i] = get_random64() % q;
+        sum = (sum + out[i]) % q;
+    }
+    out[n - 1] = (x + q - sum) % q;
+}
+
+
+
+
+
+void test_SecB2Aq(uint64_t x, uint64_t q) {
+    uint64_t bshares[MASKING_N] = {0};
+    uint64_t ashare[MASKING_N] = {0};
+
+    // Boolean mask the input
+    boolean_mask(bshares, x);
+
+    uint64_t bsum = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        bsum ^= bshares[i];
+    }
+    printf("Boolean recombined value: %lu (0x%llx)\n", bsum, bsum);
+
+    // Convert to arithmetic masking
+    SecB2Aq(ashare, bshares, MASKING_N, q);
+
+    // Recombine arithmetic result
+    uint64_t sum = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        sum = (sum + ashare[i]) % q;
+    }
+
+    if (sum != (x % q)) {
+        printf("FAIL: B2A x = %lu, recovered = %lu\n", (uint32_t)x, (uint32_t)sum);
+        while (1);
+    } else {
+        printf("PASS: B2A x = %lu\n", (uint32_t)x);
+    }
+}
+
+// A → B → A should preserve input
+void test_roundtrip(uint64_t x, uint64_t q) {
+    masked_uint64_t A = {0};
+    uint64_t bshares[MASKING_N] = {0};
+    uint64_t ashare2[MASKING_N] = {0};
+
+    // Arithmetic mask
+    uint64_t sum = 0;
+    for (int i = 0; i < MASKING_N - 1; i++) {
+        A.share[i] = get_random64() % q;
+        sum = (sum + A.share[i]) % q;
+    }
+    A.share[MASKING_N - 1] = (x + q - sum) % q;
+
+    // A → B
+    SecA2Bq_debug(bshares, A.share, MASKING_N, q);
+
+    // B → A
+    SecB2Aq(ashare2, bshares, MASKING_N, q);
+
+    uint64_t final = 0;
+    for (int i = 0; i < MASKING_N; i++) {
+        final = (final + ashare2[i]) % q;
+    }
+
+    if (final != (x % q)) {
+        printf("FAIL: roundtrip x = %lu, final = %lu\n", (uint32_t)x, (uint32_t)final);
+        while (1);
+    } else {
+        printf("PASS: roundtrip x = %lu\n", (uint32_t)x);
+    }
+}
+
+#define KYBER_Q 3329
 /**
   * @brief  The application entry point.
   * @retval int
@@ -528,7 +795,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  test_masked_vs_reference_step_by_step_arithmetic();
+	  test_SecB2Aq(0, KYBER_Q);        // Edge case: zero
+	  test_SecB2Aq(1, KYBER_Q);        // Smallest non-zero
+	  test_SecB2Aq(123, KYBER_Q);      // Arbitrary small value
+	  test_SecB2Aq(456, KYBER_Q);      // Arbitrary mid-range value
+	  test_SecB2Aq(2048, KYBER_Q);     // Large value below q
+	  test_SecB2Aq(KYBER_Q - 1, KYBER_Q); // Edge case: max valid mod-q input
+	  test_SecB2Aq(KYBER_Q, KYBER_Q);     // Wraparound: should be equivalent to 0
+	  test_SecB2Aq(KYBER_Q + 123, KYBER_Q); // Wraparound case
+
+	  //test_masked_vs_reference_step_by_step_arithmetic();
 	  /*
 	  test_masked_vs_reference_step_by_step();
 	  test_full_keccak_rounds();

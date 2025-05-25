@@ -1,1 +1,6 @@
 *.elf
+*.cyclo
+*.o
+*.elf
+*.list
+*.map
