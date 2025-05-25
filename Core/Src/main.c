@@ -795,14 +795,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  test_SecB2Aq(0, KYBER_Q);        // Edge case: zero
-	  test_SecB2Aq(1, KYBER_Q);        // Smallest non-zero
-	  test_SecB2Aq(123, KYBER_Q);      // Arbitrary small value
-	  test_SecB2Aq(456, KYBER_Q);      // Arbitrary mid-range value
-	  test_SecB2Aq(2048, KYBER_Q);     // Large value below q
-	  test_SecB2Aq(KYBER_Q - 1, KYBER_Q); // Edge case: max valid mod-q input
-	  test_SecB2Aq(KYBER_Q, KYBER_Q);     // Wraparound: should be equivalent to 0
-	  test_SecB2Aq(KYBER_Q + 123, KYBER_Q); // Wraparound case
+	  test_roundtrip(0, 3329);
+	  test_roundtrip(1, 3329);
+	  test_roundtrip(2, 3329);
+	  test_roundtrip(123, 3329);
+	  test_roundtrip(456, 3329);
+	  test_roundtrip(2048, 3329);
+	  test_roundtrip(3328, 3329);
+	  test_roundtrip(3329 + 1, 3329); // x ≡ 1 mod q
+	  test_roundtrip(6658, 3329);    // x ≡ 0 mod q again
+	  test_roundtrip(UINT64_MAX, 3329); // large x
+
 
 	  //test_masked_vs_reference_step_by_step_arithmetic();
 	  /*
