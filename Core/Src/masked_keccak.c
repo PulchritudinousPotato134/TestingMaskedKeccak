@@ -576,52 +576,24 @@ void masked_keccak_f1600(masked_uint64_t state[5][5]) {
     }
 }
 
-
 void masked_theta_arithmetic(masked_uint64_t state[5][5]) {
     masked_uint64_t C[5] = {0};
     masked_uint64_t D[5] = {0};
 
-    // === Recombine and save initial state ===
-    uint64_t input_state[25];
-    for (int y = 0; y < 5; ++y)
-        for (int x = 0; x < 5; ++x) {
-            uint64_t val = 0;
-            for (int i = 0; i < MASKING_N; ++i)
-                val = (val + state[x][y].share[i]) & 0xFFFFFFFFFFFFFFFFULL;
-            input_state[y * 5 + x] = val;
-        }
-
-    // === Compute reference state ===
-    uint64_t ref_state[25];
-    memcpy(ref_state, input_state, sizeof(ref_state));
-    theta(ref_state);
-
-    printf("\n[DEBUG] Input state before Theta:\n");
-    for (int y = 0; y < 5; ++y)
-        for (int x = 0; x < 5; ++x)
-            printf("input[%d][%d] = %016lX\n", x, y, input_state[y * 5 + x]);
-
-    // === Compute C[x] = sum across each column ===
+    // Compute C[x] = A[x][0] + A[x][1] + A[x][2] + A[x][3] + A[x][4]
     for (int x = 0; x < 5; x++) {
         C[x] = state[x][0];
         for (int y = 1; y < 5; y++) {
             masked_add_arithmetic(&C[x], &C[x], &state[x][y]);
         }
-
-        uint64_t recombined = 0;
-        for (int i = 0; i < MASKING_N; ++i)
-            recombined = (recombined + C[x].share[i]) & 0xFFFFFFFFFFFFFFFFULL;
-        printf("[DEBUG] C[%d] recombined = %016lX\n", x, recombined);
     }
 
-    // === Compute D[x] = C[x-1] + ROT(C[x+1], 1) ===
+    // Compute D[x] = C[x-1] XOR ROT(C[x+1], 1)
     for (int x = 0; x < 5; x++) {
-        // Recombine C[(x+1)%5]
         uint64_t c_next = 0;
         for (int i = 0; i < MASKING_N; ++i)
             c_next = (c_next + C[(x + 1) % 5].share[i]) & 0xFFFFFFFFFFFFFFFFULL;
 
-        // Recombine C[(x+4)%5]
         uint64_t c_prev = 0;
         for (int i = 0; i < MASKING_N; ++i)
             c_prev = (c_prev + C[(x + 4) % 5].share[i]) & 0xFFFFFFFFFFFFFFFFULL;
@@ -629,39 +601,18 @@ void masked_theta_arithmetic(masked_uint64_t state[5][5]) {
         uint64_t rotated = (c_next << 1) | (c_next >> 63);
         uint64_t Dx = c_prev ^ rotated;
 
-
-        // Mask Dx back into D[x]
-        // Temporarily mask Dx deterministically for debugging
+        // Re-mask Dx into D[x] (simple deterministic split)
         for (int i = 0; i < MASKING_N; ++i)
             D[x].share[i] = 0;
         D[x].share[MASKING_N - 1] = Dx;
-
-
-        // Recombine to log
-        uint64_t recombined = 0;
-        for (int i = 0; i < MASKING_N; ++i)
-            recombined = (recombined + D[x].share[i]) & 0xFFFFFFFFFFFFFFFFULL;
-        printf("[DEBUG] D[%d] recombined = %016lX\n", x, recombined);
     }
 
-    // === Final update: A[x,y] = A[x,y] + D[x] ===
+    // Apply D[x] to each word in the column: A[x][y] += D[x]
     for (int x = 0; x < 5; x++) {
         for (int y = 0; y < 5; y++) {
             masked_uint64_t tmp;
             masked_add_arithmetic(&tmp, &state[x][y], &D[x]);
             state[x][y] = tmp;
-        }
-    }
-
-    printf("\n[DEBUG] Final recombined state after masked_theta:\n");
-    for (int y = 0; y < 5; ++y) {
-        for (int x = 0; x < 5; ++x) {
-            uint64_t val = 0;
-            for (int i = 0; i < MASKING_N; ++i)
-                val = (val + state[x][y].share[i]) & 0xFFFFFFFFFFFFFFFFULL;
-            printf("state[%d][%d] = %016lX | expected = %016lX", x, y, val, ref_state[y * 5 + x]);
-            if (val != ref_state[y * 5 + x]) printf("  <-- mismatch");
-            printf("\n");
         }
     }
 }
