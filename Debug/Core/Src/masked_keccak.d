@@ -35,7 +35,7 @@ Core/Src/masked_keccak.o: ../Core/Src/masked_keccak.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hcd.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h \
  ../Core/Src/debug_log.h ../Core/Src/params.h ../Core/Src/global_rng.h \
- ../Core/Src/unmasked_keccak.h ../Core/Src/structs.h
+ ../Core/Src/unmasked_keccak.h ../Core/Src/structs.h ../Core/Src/keccak.h
 ../Core/Src/masked_gadgets.h:
 ../Core/Src/masked_types.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -77,3 +77,4 @@ Core/Src/masked_keccak.o: ../Core/Src/masked_keccak.c \
 ../Core/Src/global_rng.h:
 ../Core/Src/unmasked_keccak.h:
 ../Core/Src/structs.h:
+../Core/Src/keccak.h:

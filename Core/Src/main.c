@@ -244,7 +244,17 @@ void test_masked_vs_reference_step_by_step(void) {
 
 
 }
+static void fill_random_additive_shares(masked_uint64_t* out, uint64_t value) {
+    uint64_t acc = value;
 
+    for (int i = 0; i < MASKING_N - 1; ++i) {
+        out->share[i] = get_random64();
+        acc -= out->share[i];
+    }
+
+    out->share[MASKING_N - 1] = acc;
+}
+#include "params.h"
 void test_masked_vs_reference_step_by_step_arithmetic(void) {
     // === 1. Initial state setup ===
     uint64_t ref_state[25];
@@ -255,6 +265,31 @@ void test_masked_vs_reference_step_by_step_arithmetic(void) {
     fill_masked_state_arithmetic(masked_state, ref_state);
 
     uint64_t tmp_ref[25], tmp_masked[25];
+
+
+    masked_uint64_t a, b, res;
+        uint64_t plain_a = 0x123456789ABCDEF0;
+        uint64_t plain_b = 0x0FEDCBA987654321;
+
+        fill_random_additive_shares(&a, plain_a);
+        fill_random_additive_shares(&b, plain_b);
+
+        masked_add_arithmetic(&res, &a, &b);  // 3-arg usage
+
+        // Recombine and check
+        uint64_t recombined = 0;
+        for (int i = 0; i < MASKING_N; ++i)
+            recombined += res.share[i];
+
+        uint64_t expected = plain_a + plain_b;
+        if (recombined != expected) {
+            printf("[FAIL] masked_add_arithmetic: expected %016lX, got %016lX\n", expected, recombined);
+            assert(0);
+        } else {
+            printf("[PASS] masked_add_arithmetic: %016lX + %016lX = %016lX\n", plain_a, plain_b, recombined);
+        }
+
+
 
     // === 2. THETA ===
     memcpy(tmp_ref, ref_state, sizeof(ref_state));

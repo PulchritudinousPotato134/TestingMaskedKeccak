@@ -70,10 +70,10 @@ void masked_not(masked_uint64_t *dst, const masked_uint64_t *src) {
 
 
 void masked_add_arithmetic(masked_uint64_t *out,
-                const masked_uint64_t *a,
-                const masked_uint64_t *b) {
+                           const masked_uint64_t *a,
+                           const masked_uint64_t *b) {
     for (size_t i = 0; i < MASKING_N; i++) {
-        out->share[i] = a->share[i] + b->share[i];
+        out->share[i] = (a->share[i] + b->share[i]) & 0xFFFFFFFFFFFFFFFFULL;
     }
 }
 
